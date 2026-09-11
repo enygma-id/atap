@@ -1,0 +1,38 @@
+{
+  "stepped_default": {
+    "parts": 8,
+    "buildings": 4,
+    "skipped": 1,
+    "decomposed": 3,
+    "max_part_level": 1,
+    "total_volume_m3": 153266.04,
+    "seconds_workers_1": 0.42
+  },
+  "stepped_k8_regularize": {
+    "parts": 10,
+    "buildings": 4,
+    "skipped": 1,
+    "decomposed": 3,
+    "max_part_level": 2,
+    "total_volume_m3": 153266.04,
+    "seconds_workers_1": 0.42
+  },
+  "courtyard_default": {
+    "parts": 2,
+    "buildings": 1,
+    "skipped": 0,
+    "decomposed": 1,
+    "max_part_level": 1,
+    "total_volume_m3": 105223.64,
+    "seconds_workers_1": 0.27
+  },
+  "bench_default": {
+    "parts": 409,
+    "buildings": 260,
+    "skipped": 0,
+    "decomposed": 141,
+    "max_part_level": 2,
+    "total_volume_m3": 910603.6,
+    "seconds_workers_1": 5.01
+  }
+}

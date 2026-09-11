@@ -1,0 +1,14 @@
+{
+  "building_count": 260,
+  "decomposed_building_count": 141,
+  "part_count": 409,
+  "max_part_level": 2,
+  "max_top_height_agl_m": 55.0,
+  "total_volume_m3": 910603.6,
+  "skipped_building_count": 0,
+  "skipped_buildings": [],
+  "validation": {
+    "status": "passed",
+    "checked_parts": 409
+  }
+}

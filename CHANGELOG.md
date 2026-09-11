@@ -6,6 +6,10 @@ All notable public changes to ATAP should be documented here.
 
 ### Elevation prototype
 
+- froze three complete synthetic golden outputs and a benchmark summary with
+  a full-output canonical SHA-256, reproduction commands, and runtime provenance;
+- added golden verification and Windows/Linux baseline CI.
+
 - imported the reference elevation engine 0.2.0 / profile 0.6, playground,
   and synthetic verification tools without changing their behavior;
 - documented implementation decisions and eight known elevation limitations;

@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Prototype baselines
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  golden-equivalence:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install reference runtime
+        run: python -m pip install numpy==2.5.3 scipy==1.18.1 rasterio==1.5.1 shapely==2.1.2 pyproj==3.8.0
+      - name: Generate synthetic inputs
+        run: python prototype/tools/make_synthetic.py --out .cache/syn
+      - name: Run single-worker baselines
+        run: python prototype/tools/run_baselines.py --data .cache/syn --out .cache/baseline
+      - name: Verify frozen goldens
+        run: python tests/golden/verify.py .cache/baseline
