@@ -4,6 +4,13 @@ All notable public changes to ATAP should be documented here.
 
 ## Unreleased
 
+### Elevation prototype
+
+- imported the reference elevation engine 0.2.0 / profile 0.6, playground,
+  and synthetic verification tools without changing their behavior;
+- documented implementation decisions and eight known elevation limitations;
+- normalized product text line endings with `.gitattributes`.
+
 ### Repository foundation
 
 - established ATAP project identity;
