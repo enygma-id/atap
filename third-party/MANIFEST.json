@@ -1,0 +1,27 @@
+{
+  "purpose": "Initial ATAP third-party license provenance snapshot",
+  "captured_runtime_versions": {
+    "numpy": "2.3.5",
+    "geopandas": "1.1.2",
+    "rasterio": "1.5.0",
+    "shapely": "2.1.2",
+    "scipy": "1.17.0",
+    "pandas": "2.2.3",
+    "pyproj": "3.7.2"
+  },
+  "note": "Captured versions are provenance of license-file sources, not dependency pins. GDAL license material is stored in a separate gdal/ directory to avoid case-insensitive filename collisions on macOS/Windows.",
+  "files": [
+    "MANIFEST.json",
+    "README.md",
+    "gdal/LICENSE.TXT",
+    "geopandas/LICENSE.txt",
+    "numpy/LICENSE.txt",
+    "pandas/LICENSE",
+    "pyproj/LICENSE",
+    "pyproj/LICENSE_proj",
+    "rasterio/LICENSE.txt",
+    "scipy/LICENSE.txt",
+    "shapely/LICENSE.txt",
+    "shapely/LICENSE_GEOS"
+  ]
+}
