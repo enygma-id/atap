@@ -4,6 +4,16 @@ All notable public changes to ATAP should be documented here.
 
 ## Unreleased
 
+### Packaged engine and CLI
+
+- added the installable `atap` Python package and public API;
+- added `atap run`, `atap validate`, version output, JSONL events, parameter
+  files, cancellation polling, stable exit codes, and raster-driver restriction;
+- moved verification tools to `tools/`, added tests and cross-platform CI;
+- translated engine messages and orientation metadata to English without
+  changing scientific output;
+- recorded licenses for build, server-extra, and development dependencies.
+
 ### Elevation prototype
 
 - froze three complete synthetic golden outputs and a benchmark summary with

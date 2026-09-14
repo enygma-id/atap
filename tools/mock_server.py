@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """
 Local stand-in for `atap serve`, implementing the API contract written at
-the top of playground/index.html with the prototype engine running in a
+the top of playground/index.html with the packaged engine running in a
 thread. Stdlib only. NOT the production server: no security hardening, no TTL
 cleanup, no subprocess isolation. Uploads are held in memory while parsed,
 so very large rasters need RAM of roughly 2-3x their size.
@@ -12,14 +12,24 @@ Environment:
     MOCK_MAX_UPLOAD_MB   upload limit reported to the browser (default 2048)
     MOCK_DELAY           seconds to wait before each job starts (tests only)
 """
-import sys, json, uuid, queue, threading, time, os, email.parser, email.policy, importlib.util, tempfile
-from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+import email.parser
+import email.policy
+import json
+import os
+import queue
+import sys
+import tempfile
+import threading
+import time
+import uuid
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-# Import the engine by module name (not by file path) so that its spawn
-# workers can re-import it: parallel runs (workers > 1) then work.
-sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..")))
-import elevation as E  # noqa: E402
-ROOT = os.path.normpath(os.path.join(HERE, "..", "playground"))
+# Import the package by module name so spawned workers can re-import it.
+import atap as E  # noqa: E402
+from atap.engine.config import ENGINE_VERSION  # noqa: E402
+
+ROOT = os.path.normpath(os.path.join(HERE, "..", "prototype", "playground"))
 WORK = None  # created in main(); spawn workers import this module too
 MAX_UPLOAD_MB = int(os.environ.get("MOCK_MAX_UPLOAD_MB", "2048"))
 JOBS = {}; Q = []; LOCK = threading.Lock(); DELAY = float(os.environ.get("MOCK_DELAY", "0"))
@@ -59,7 +69,7 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         p = self.path.split("?")[0]
         if p == "/api/health":
-            with LOCK: return self.send(200, {"version": E.ENGINE_VERSION, "source_url": "https://github.com/enygma-id/atap",
+            with LOCK: return self.send(200, {"version": ENGINE_VERSION, "source_url": "https://github.com/enygma-id/atap",
                 "running_jobs": sum(j["status"] == "running" for j in JOBS.values()), "queued_jobs": len(Q), "max_concurrent": 1, "max_upload_mb": MAX_UPLOAD_MB})
         if p.startswith("/api/jobs/"):
             parts = p.split("/"); job = JOBS.get(parts[3])

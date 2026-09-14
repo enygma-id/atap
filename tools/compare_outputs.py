@@ -15,6 +15,10 @@ import sys
 IGNORED_TOP = {"process"}
 IGNORED_PROCESSING = {"execution"}
 
+# Profile 0.6 English migration changes only this metadata value. Use
+# --allow-orientation-translation solely when comparing a pre-migration golden.
+ALLOW_ORIENTATION_TRANSLATION = "--allow-orientation-translation" in sys.argv
+
 
 def canonical(path):
     d = json.load(open(path, encoding="utf-8"))
@@ -22,6 +26,8 @@ def canonical(path):
         d.pop(k, None)
     for k in IGNORED_PROCESSING:
         d.get("processing", {}).pop(k, None)
+    if ALLOW_ORIENTATION_TRANSLATION:
+        d.get("processing", {}).pop("orientation_convention", None)
     return d
 
 
@@ -48,7 +54,8 @@ def diff(a, b, path="$", out=None, limit=20):
 
 
 if __name__ == "__main__":
-    problems = diff(canonical(sys.argv[1]), canonical(sys.argv[2]))
+    paths = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
+    problems = diff(canonical(paths[0]), canonical(paths[1]))
     if problems:
         print("NOT EQUIVALENT (first differences):")
         print("\n".join("  " + p for p in problems))

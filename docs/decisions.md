@@ -226,7 +226,7 @@ code that cannot run on a GPU. `use_gpu` and `gpu_min_pixels` were removed.
 
 ## ADR-012 Split the engine into a package
 
-**Status:** Planned (v0.2.0 packaging).
+**Status:** Accepted (v0.2.0 packaging).
 
 The spec allows a single file (§41) but recommends logical modules. The
 repository splits the code into `atap.engine` (library, no web dependencies),
@@ -242,7 +242,7 @@ repository splits the code into `atap.engine` (library, no web dependencies),
 5. unit tests per module, and a small auditable surface for untrusted input;
 6. the output profile and the HTTP API are versioned independently.
 
-The split is a pure move, proven with `prototype/tools/compare_outputs.py`
+The split is a pure move, proven with `tools/compare_outputs.py`
 against golden outputs frozen from the prototype.
 
 ## ADR-013 Server runs jobs through the CLI
@@ -274,8 +274,8 @@ tree kill after a grace period.
 
 ## ADR-015 Legacy compatibility shims
 
-**Status:** Planned removal (v0.2.0 packaging).
+**Status:** Accepted; removed in v0.2.0 packaging.
 
-The prototype still accepts `embed_ground_z` (ignored with a warning) so
-older internal callers do not crash. The ATAP repository has no such
-callers; remove the shim during packaging.
+The prototype accepted `embed_ground_z` as an ignored compatibility option.
+The packaged public API removes it because renderer Z state is outside the
+canonical engine contract and the repository has no callers that require it.

@@ -2,9 +2,9 @@
 """Verify a complete run_baselines.py output directory against frozen goldens."""
 import hashlib
 import json
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 
 def read(path):
@@ -16,7 +16,7 @@ def main():
         raise SystemExit("Usage: python tests/golden/verify.py BASELINE_DIRECTORY")
     golden = Path(__file__).resolve().parent
     candidate = Path(sys.argv[1])
-    comparator = golden.parents[1] / "prototype/tools/compare_outputs.py"
+    comparator = golden.parents[1] / "tools/compare_outputs.py"
     for name in ("stepped_default", "stepped_k8_regularize", "courtyard_default"):
         print(name, flush=True)
         subprocess.run([sys.executable, str(comparator),

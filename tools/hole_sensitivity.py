@@ -2,17 +2,18 @@
 """
 Hole / courtyard parameter sensitivity on the `courtyard` synthetic dataset.
 
-    python hole_sensitivity.py --data DIR/courtyard [--engine ../elevation.py]
+    python tools/hole_sensitivity.py --data DIR/courtyard [--engine atap]
 
 Prints, per parameter variant, which holes (A..F) survive in the level-1
 part and the net area/volume. Reference numbers (prototype, DSM 0.1 m) are
 in docs/decisions.md (ADR-006).
 """
 import argparse
+import importlib
 import importlib.util
-import sys
 import json
 import os
+import sys
 import tempfile
 
 import numpy as np
@@ -36,6 +37,8 @@ VARIANTS = [
 
 
 def load_engine(path):
+    if path == "atap":
+        return importlib.import_module("atap")
     spec = importlib.util.spec_from_file_location("atap_engine_proto", path)
     mod = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = mod          # required by @dataclass during exec
@@ -47,7 +50,7 @@ def main():
     here = os.path.dirname(os.path.abspath(__file__))
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", required=True)
-    ap.add_argument("--engine", default=os.path.join(here, "..", "elevation.py"))
+    ap.add_argument("--engine", default="atap")
     a = ap.parse_args()
     E = load_engine(a.engine)
     tr = Transformer.from_crs(4326, 32750, always_xy=True)

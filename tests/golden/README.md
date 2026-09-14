@@ -33,13 +33,13 @@ Python 3.13 (the recorded run used 3.13.2), activate it, then run:
 
 ```sh
 python -m pip install numpy==2.5.3 scipy==1.18.1 rasterio==1.5.1 shapely==2.1.2 pyproj==3.8.0
-python prototype/tools/make_synthetic.py --out .cache/syn
-python prototype/tools/run_baselines.py --data .cache/syn --out .cache/baseline
+python tools/make_synthetic.py --out .cache/syn
+python tools/run_baselines.py --data .cache/syn --out .cache/baseline
 python tests/golden/verify.py .cache/baseline
 ```
 
 Raster inputs and the full benchmark output stay local and are not committed.
-The verifier invokes `prototype/tools/compare_outputs.py` for the three
+The verifier invokes `tools/compare_outputs.py` for the three
 complete goldens, checks the benchmark summary and full-output hash, and
 compares the four run summaries excluding `seconds_workers_1` only.
 
@@ -52,3 +52,11 @@ Array order and all other values remain significant. The filename in the
 
 Timings and process metadata vary by run. Do not regenerate goldens just to
 accept a discrepancy: investigate it and document intentional output changes.
+
+## Profile 0.6 English metadata migration
+
+Phase 1 translated only `processing.orientation_convention` to English. The
+three complete goldens and benchmark canonical hash were updated after all
+four pre-migration comparisons were EQUIVALENT when that one value was
+excluded. Geometry, hierarchy, measurements, schema, parameters, and defaults
+did not change.

@@ -2,17 +2,18 @@
 """
 Produce baseline (golden) outputs from an engine implementation.
 
-    python run_baselines.py --data DIR --out OUTDIR [--engine ../elevation.py]
+    python tools/run_baselines.py --data DIR --out OUTDIR [--engine atap]
 
-Run it against the prototype to freeze golden outputs, and against later
-implementations to compare with compare_outputs.py.
+Run it against the installed package and compare results with
+compare_outputs.py.
 Cases are fixed so results are comparable across implementations.
 """
 import argparse
+import importlib
 import importlib.util
-import sys
 import json
 import os
+import sys
 import time
 
 CASES = [
@@ -25,6 +26,8 @@ CASES = [
 
 
 def load_engine(path):
+    if path == "atap":
+        return importlib.import_module("atap")
     spec = importlib.util.spec_from_file_location("atap_engine_under_test", path)
     mod = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = mod          # required by @dataclass during exec
@@ -37,7 +40,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", required=True, help="directory produced by make_synthetic.py")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--engine", default=os.path.join(here, "..", "elevation.py"))
+    ap.add_argument("--engine", default="atap",
+                    help="'atap' for the installed package, or an engine source file")
     ap.add_argument("--only", nargs="*", help="subset of case names")
     a = ap.parse_args()
     E = load_engine(a.engine)
