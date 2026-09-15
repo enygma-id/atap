@@ -173,9 +173,15 @@ def run_elevation(
              f"{grid.width}x{grid.height} px, resolution {grid.res_x:.4f} x {grid.res_y:.4f} m; "
              f"DTM resampled with {DTM_RESAMPLING} onto the DSM grid.")
 
-        keep = list(cfg.keep_properties or [])
-        pad = max(1, int(cfg.morph_closing_iters) + 2)
         records = fp["records"]
+        keep = (
+            sorted({key for _, _, props in records for key in props})
+            if cfg.keep_properties is None
+            else list(dict.fromkeys(cfg.keep_properties))
+        )
+        # Persist the resolved keys for workers and reproducible output metadata.
+        cfg = replace(cfg, keep_properties=keep)
+        pad = max(1, int(cfg.morph_closing_iters) + 2)
         order = spatial_order(records, grid)
         items = [(i, records[i][0], records[i][1], records[i][2]) for i in order]
         n_workers = resolve_workers(cfg.workers, n_parcels)

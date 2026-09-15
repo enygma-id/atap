@@ -35,11 +35,10 @@ def _params() -> list[dict]:
 def test_ui_parameter_defaults_match_engine_config():
     definitions = _params()
     ui_defaults = {item["key"]: item["def"] for item in definitions}
-    ui_defaults["keep_properties"] = [
-        value.strip()
-        for value in ui_defaults["keep_properties"].split(",")
-        if value.strip()
-    ]
+    ui_defaults["keep_properties"] = (
+        [value.strip() for value in ui_defaults["keep_properties"].split(",") if value.strip()]
+        or None
+    )
     ui_defaults["id_field"] = ui_defaults["id_field"] or None
     ui_defaults["vertical_datum"] = ui_defaults["vertical_datum"] or None
 

@@ -134,6 +134,7 @@
   .param-buttons.segmented .param-option:first-child{border-radius:6px 0 0 6px;margin-left:0}
   .param-buttons.segmented .param-option:last-child{border-radius:0 6px 6px 0}
   .param-option[aria-pressed=true]{background:#eaf3fb;border-color:var(--accent);color:var(--accent);position:relative}
+  .param-buttons.chips .param-option{font-size:10px;line-height:1.15;padding:3px 5px}
   .param-option:hover{background:var(--fill)}
   .param-option:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   input[type=text],input[type=number]{width:118px;text-align:right;font-variant-numeric:tabular-nums}
@@ -592,7 +593,7 @@ const PARAMS = [
    type:'select', options:[], def:'', nullable:true},
   {group:'out', key:'keep_properties', label:'Copy attributes',
    hint:'All footprint properties start active. Toggle which attributes are copied onto every part.',
-   type:'chips', def:'id, NAMOBJ, REMARK, floor_est'},
+   type:'chips', def:''},
   {group:'out', key:'working_crs', label:'Working CRS',
    hint:'Metric CRS used for all measurements, normally the UTM zone of the area.',
    type:'text', def:'EPSG:32750'},
@@ -1438,7 +1439,7 @@ async function inspectFootprint(file) {
   state.footprintInfo = null;
   if (!file) {
     setParam('id_field', '');
-    setParam('keep_properties', attributeKeys(PARAMS.find(def => def.key === 'keep_properties').def));
+    setParam('keep_properties', []);
     renderFootprintInfo(); return;
   }
   if (file.size > FOOTPRINT_INSPECT_LIMIT) {

@@ -31,7 +31,7 @@ Building IDs automatically come from `properties.id`. Use `--id-field FIELD` to 
 | `--simplify-tolerance-m` | `0.9` |
 | `--rectangular-ratio` | `0.4` |
 | `--circularity-threshold` | `0.8` |
-| `--keep-properties` | `id,NAMOBJ,REMARK,floor_est` |
+| `--keep-properties` | all footprint properties |
 | `--working-crs` | `EPSG:32750` |
 | `--round-digits` | `2` |
 
@@ -102,6 +102,9 @@ for explicitly naming another source key.
 **Copy attributes** shows one toggle button per detected footprint property.
 All start active when a footprint is selected. Turn individual buttons off to
 exclude those properties, or turn all off to send an empty copy list. Reset
-reactivates all detected properties. The engine's CLI/API default list remains
-`id,NAMOBJ,REMARK,floor_est`; the playground explicitly sends its active list.
+reactivates all detected properties. When `--keep-properties` is omitted, the engine copies every property key found
+in the footprint dataset. Pass a comma-separated list to copy only those keys;
+pass an empty value to copy none. For a property name containing a comma, use
+`--params-json` with a JSON array. Default discovery sorts the keys; explicit lists are deduplicated while
+preserving their first order. The effective list is recorded in output metadata. The playground explicitly sends its active list.
 Canonical output fields cannot be overwritten by copied source attributes.

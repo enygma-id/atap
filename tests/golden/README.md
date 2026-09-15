@@ -69,3 +69,14 @@ from `feature_id` to `property` with field `id` in stepped_k8_regularize,
 courtyard_default, and bench_default. All features, geometry, hierarchy, vertical
 values, summaries, and parameters remain identical. Restoring only the old bench
 `id_source` reproduces the previous canonical hash; its new hash is `434e4cb08571df7a085dc167f33574603c34b3456af75bbfd02497f678189ba2`.
+
+
+## Default source-property correction
+
+An omitted `keep_properties` now resolves to every property key present in the
+footprint dataset; an explicit empty list still copies none. Synthetic inputs
+contain `NAMOBJ` and `id`, so every case records `["NAMOBJ", "id"]` instead of
+the obsolete four-name list. All features, geometry, hierarchy, vertical values,
+summaries, and other parameters remain identical. Restoring only that old list
+reproduces the previous benchmark hash. The corrected benchmark canonical hash
+is `9ff5c7fefe3780de87c0c280ecabb9dbd23d7a33e84c5f52c05ba6972ee2bcfd`.

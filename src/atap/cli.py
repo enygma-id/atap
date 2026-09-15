@@ -67,7 +67,7 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--simplify-tolerance-m", type=float)
     parser.add_argument("--rectangular-ratio", type=float)
     parser.add_argument("--circularity-threshold", type=float)
-    parser.add_argument("--keep-properties")
+    parser.add_argument("--keep-properties", help="Comma-separated properties to copy (default: all; empty: none)")
     parser.add_argument("--working-crs")
     parser.add_argument("--round-digits", type=int)
     parser.add_argument("--workers", type=int)

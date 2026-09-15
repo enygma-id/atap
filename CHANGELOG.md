@@ -6,6 +6,9 @@ All notable public changes to ATAP should be documented here.
 
 ### Changed (scientific)
 
+- copy all footprint properties when `keep_properties` is omitted, replacing
+  the inherited four-name default; an explicit empty list copies none;
+
 - corrected input building ID selection to use an explicit properties key or
   automatically `properties.id`; top-level input Feature identifiers are ignored;
 - aligned playground ID selection and provenance with this rule. Synthetic

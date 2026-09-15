@@ -82,6 +82,20 @@ def test_cancel_file_returns_130_without_output(synthetic: Path, tmp_path: Path)
     assert not output.exists()
 
 
+def test_keep_properties_omitted_means_all_and_empty_flag_means_none(monkeypatch):
+    calls = []
+    def fake_run(*args, **kwargs):
+        calls.append(kwargs)
+        return {"cancelled": False, "output_path": "out.geojson"}
+    monkeypatch.setattr(atap.cli, "run_elevation", fake_run)
+    common = ["run", "--input-geojson", "footprints.geojson", "--dsm", "dsm.tif",
+              "--dtm", "dtm.tif", "--output", "out.geojson", "--quiet"]
+    assert atap.cli.main(common) == 0
+    assert "keep_properties" not in calls[-1]
+    assert atap.cli.main([*common, "--keep-properties", ""]) == 0
+    assert calls[-1]["keep_properties"] == []
+
+
 def test_unexpected_error_returns_4(monkeypatch, capsys, tmp_path: Path):
     monkeypatch.setattr(atap.cli, "run_elevation", lambda *args, **kwargs: 1 / 0)
     code = atap.cli.main([

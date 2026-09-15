@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Configuration, version constants, and public engine errors."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 ENGINE_VERSION = "0.2.0"
 PROFILE_VERSION = "0.6"
@@ -77,9 +77,8 @@ class Config:
     rectangular_ratio: float = 0.4
     circularity_threshold: float = 0.8
 
-    # Source properties copied to every generated part.
-    keep_properties: list[str] = field(
-        default_factory=lambda: ["id", "NAMOBJ", "REMARK", "floor_est"])
+    # Source properties copied to every generated part. None selects every key.
+    keep_properties: list[str] | None = None
 
     # Execution resources. Zero workers selects cores minus one; one is sequential.
     workers: int = 0

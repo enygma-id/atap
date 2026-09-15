@@ -178,8 +178,10 @@ tolerance.
   `allow_nan=False` so NaN can never be serialized.
 - No renderer state in the output (no Z, no explode, no colours).
 - Extra QA fields beyond the spec example: `parent_containment_ratio`,
-  `interior_ring_count`, `geometry_method`. Source attributes listed in
-  `keep_properties` are copied flat; a name that collides with a canonical
+  `interior_ring_count`, `geometry_method`. When `keep_properties` is unset, every source property key in the dataset is
+  copied; an explicit empty list copies none. Default-discovered keys are sorted, and explicit
+  keys are deduplicated in their first order. The effective list is written to
+  output metadata. Source attributes are copied flat; a name that collides with a canonical
   field gets the `src_` prefix.
 - `orientation_deg` = azimuth of the longest minimum-rotated-rectangle edge,
   clockwise from grid north of `working_crs`, range [0, 180).
@@ -311,8 +313,26 @@ canonical engine contract and the repository has no callers that require it.
 - Copy attributes uses independent toggle buttons. Every detected property
   starts active on footprint selection and reset; no active buttons means an
   explicit empty keep_properties array. Keys containing commas remain intact.
-- Before a footprint is inspected, initial choices match Config's copy defaults.
-  The playground sends its detected/selected list explicitly; engine defaults
-  and numerical algorithms are unchanged. Copied source attributes can differ
-  intentionally from the previous four-field playground selection.
+- Before a footprint is inspected, the list is empty because there are no detected
+  keys. The playground sends its detected/selected list explicitly. Copied source
+  attributes can differ intentionally from the obsolete four-field selection.
 - Button state uses aria-pressed; keyboard focus is preserved after toggling.
+
+## ADR-018 Default to all source properties
+
+**Status:** Accepted (pre-release v0.2.0). Supersedes the four-name source
+property default inherited from the prototype.
+
+- An omitted/null keep_properties discovers the union of property keys across
+  the footprint dataset, sorts it for deterministic output, and copies every
+  available selected value to each generated part.
+- An explicit array selects only those keys; [] copies none. Duplicate explicit
+  keys are removed while preserving their first order.
+- The resolved list, rather than null, is written to processing.parameters so a
+  run remains auditable and reproducible. Canonical-name collisions keep the
+  existing src_ prefix rule.
+- The playground activates every detected key and sends the explicit array.
+  Compact 10 px buttons preserve the minimum text-size accessibility rule.
+- This intentionally changes source-property retention and parameter metadata.
+  Geometry, hierarchy, CRS, vertical values, numerical algorithms, and profile
+  schema remain unchanged.

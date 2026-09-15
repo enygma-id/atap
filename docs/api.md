@@ -17,6 +17,11 @@ Send all three files **or** `source_job_id`. Mixing sources or omitting a file
 returns 422. An unknown, expired, or unavailable source returns 404. Uploads
 over the configured limit return 413. Unknown or invalid parameters return 422.
 
+When `params.keep_properties` is omitted or null, the engine copies every
+property key found in the footprint dataset. An explicit JSON array copies only
+those keys; an empty array copies none. The resolved deterministic list is
+written to `processing.parameters.keep_properties`.
+
 A successful submission returns 200 with `job_id`, `footprint_count`, and
 `queue_position` (zero if not waiting). A reused job can itself be a source:
 all descendants read the original input files directly, without raster copies.

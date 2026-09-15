@@ -91,3 +91,30 @@ def test_outside_building_has_stable_skipped_reason(synthetic: Path, tmp_path: P
     assert summary["skipped_buildings"] == [
         {"object_id": "B5_out", "reason": "OUTSIDE_ANALYSIS_GRID"}
     ]
+
+
+def test_default_copies_all_source_properties_and_empty_list_copies_none(
+    synthetic: Path, tmp_path: Path,
+):
+    source = json.loads((synthetic / "courtyard/footprints.geojson").read_text(encoding="utf-8"))
+    source["features"][0]["properties"].update({
+        "custom_text": "kept", "custom_number": 17, "part_id": "source-collision",
+    })
+    footprint = tmp_path / "all-properties.geojson"
+    footprint.write_text(json.dumps(source), encoding="utf-8")
+    all_output = tmp_path / "all.geojson"
+    run_case(synthetic / "courtyard", all_output, footprint=str(footprint))
+    all_doc = json.loads(all_output.read_text(encoding="utf-8"))
+    expected = sorted(source["features"][0]["properties"])
+    assert all_doc["processing"]["parameters"]["keep_properties"] == expected
+    for feature in all_doc["features"]:
+        props = feature["properties"]
+        assert props["custom_text"] == "kept"
+        assert props["custom_number"] == 17
+        assert props["src_part_id"] == "source-collision"
+
+    none_output = tmp_path / "none.geojson"
+    run_case(synthetic / "courtyard", none_output, footprint=str(footprint), keep_properties=[])
+    none_doc = json.loads(none_output.read_text(encoding="utf-8"))
+    assert none_doc["processing"]["parameters"]["keep_properties"] == []
+    assert all("custom_text" not in feature["properties"] for feature in none_doc["features"])
