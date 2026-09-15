@@ -13,6 +13,9 @@ All notable public changes to ATAP should be documented here.
 
 ### Local server
 
+- use button groups for terrain choices, a footprint-property ID dropdown,
+  and per-property copy toggles that start active for all detected attributes;
+
 - reuse uploaded playground input across parameter-only runs without raster
   copies, with retention protection and automatic reupload after expiration;
 - name output downloads with a UTC timestamp and short job identifier;

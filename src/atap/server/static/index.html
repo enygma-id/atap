@@ -126,7 +126,16 @@
   select,input[type=text],input[type=number]{
     font:inherit;font-size:12px;padding:5px 7px;border:1px solid #d5dbe2;border-radius:6px;background:#fff;color:var(--text);
   }
-  select{min-width:118px}
+  select{min-width:118px;max-width:160px}
+  .param-buttons{display:flex;flex:none;gap:0}
+  .param-buttons.chips{flex-wrap:wrap;gap:5px}
+  .param-option{font:inherit;font-size:11px;padding:6px 8px;border:1px solid #d5dbe2;background:#fff;color:var(--text-2);cursor:pointer;border-radius:6px;overflow-wrap:anywhere}
+  .param-buttons.segmented .param-option{border-radius:0;margin-left:-1px}
+  .param-buttons.segmented .param-option:first-child{border-radius:6px 0 0 6px;margin-left:0}
+  .param-buttons.segmented .param-option:last-child{border-radius:0 6px 6px 0}
+  .param-option[aria-pressed=true]{background:#eaf3fb;border-color:var(--accent);color:var(--accent);position:relative}
+  .param-option:hover{background:var(--fill)}
+  .param-option:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   input[type=text],input[type=number]{width:118px;text-align:right;font-variant-numeric:tabular-nums}
   input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;flex:none}
   .swatch{width:10px;height:10px;border-radius:2px;flex:none}
@@ -340,7 +349,6 @@
 
       <div class="section-label">Identity &amp; output<div class="rule"></div></div>
       <div id="params-out"></div>
-      <datalist id="id-field-options"></datalist>
 
       <details class="group">
         <summary>Execution<small>· does not change results</small><span class="rule"></span></summary>
@@ -552,10 +560,10 @@ const PARAMS = [
 
   {group:'terrain', key:'base_elevation_stat', label:'Ground height from DTM',
    hint:'How one ground height is taken from the DTM pixels under the building.',
-   type:'select', options:['min','mean','median'], def:'min'},
+   type:'segmented', options:['min','mean','median'], def:'min'},
   {group:'terrain', key:'ground_source_type', label:'Terrain raster type',
    hint:'What the terrain raster really is. Recorded in the metadata only.',
-   type:'select', options:['DTM','DEM'], def:'DTM'},
+   type:'segmented', options:['DTM','DEM'], def:'DTM'},
   {group:'terrain', key:'vertical_datum', label:'Vertical datum',
    hint:'Height reference of the rasters, e.g. EGM2008. Metadata only; leave empty if unknown.',
    type:'text', def:'', nullable:true, placeholder:'unknown'},
@@ -580,11 +588,11 @@ const PARAMS = [
    type:'range', min:0, max:1, step:0.05, def:0.8},
 
   {group:'out', key:'id_field', label:'ID attribute',
-   hint:'Properties key holding a stable building ID. Automatically selects id when present; choose or enter another key if needed.',
-   type:'text', def:'', nullable:true, placeholder:'properties.id (automatic)', list:'id-field-options'},
+   hint:'Properties key holding a stable building ID. Automatically selects id when present; select another key if needed.',
+   type:'select', options:[], def:'', nullable:true},
   {group:'out', key:'keep_properties', label:'Copy attributes',
-   hint:'Source attributes copied onto every part, comma-separated.',
-   type:'list', def:'id, NAMOBJ, REMARK, floor_est'},
+   hint:'All footprint properties start active. Toggle which attributes are copied onto every part.',
+   type:'chips', def:'id, NAMOBJ, REMARK, floor_est'},
   {group:'out', key:'working_crs', label:'Working CRS',
    hint:'Metric CRS used for all measurements, normally the UTM zone of the area.',
    type:'text', def:'EPSG:32750'},
@@ -1217,9 +1225,12 @@ function paramControl(def) {
       <b id="${id}-out">${fmtParam(def, def.def)}</b></div>`;
   } else if (def.type === 'bool') {
     field = `<input id="${id}" aria-label="${esc(def.label)}" type="checkbox" ${def.def ? 'checked' : ''}>`;
+  } else if (def.type === 'segmented' || def.type === 'chips') {
+    field = `<input id="${id}" type="hidden" value="${esc(def.def)}">
+      <div id="${id}-buttons" class="param-buttons ${def.type}" role="group" aria-label="${esc(def.label)}"></div>`;
   } else if (def.type === 'select') {
-    field = `<select id="${id}" aria-label="${esc(def.label)}">${def.options.map(o =>
-      `<option value="${o}" ${o===def.def?'selected':''}>${o}</option>`).join('')}</select>`;
+    field = `<select id="${id}" aria-label="${esc(def.label)}">${(def.key === 'id_field' ? [''] : def.options).map(o =>
+      `<option value="${esc(o)}" ${o===def.def?'selected':''}>${esc(o || 'Select a property')}</option>`).join('')}</select>`;
   } else if (def.type === 'number') {
     field = `<input id="${id}" aria-label="${esc(def.label)}" type="number" min="${def.min}" max="${def.max}" step="${def.step}" value="${def.def}">`;
   } else {
@@ -1228,7 +1239,7 @@ function paramControl(def) {
       spellcheck="false" autocomplete="off">`;
   }
   const unit = def.type === 'number' && def.unit ? ` (${def.unit})` : '';
-  const stack = def.type === 'list' ? ' stack' : '';
+  const stack = def.type === 'chips' ? ' stack' : '';
   return `<div class="control${stack}" id="row-${def.key}">
     <span class="lbl"><strong>${def.label}${unit}</strong><small>${def.hint}</small></span>${field}</div>`;
 }
@@ -1241,9 +1252,35 @@ function fmtParam(def, v) {
 }
 
 function readParam(def, el) {
+  if (def.type === 'chips') return JSON.parse(el.value);
   if (def.type === 'bool') return el.checked;
   if (def.type === 'range' || def.type === 'number') return Number(el.value);
   return el.value;
+}
+
+function attributeKeys(value) {
+  return Array.isArray(value) ? value : String(value ?? '').split(',').map(v => v.trim()).filter(Boolean);
+}
+
+function renderParamButtons(def) {
+  if (def.type !== 'segmented' && def.type !== 'chips') return;
+  const selected = def.type === 'chips' ? attributeKeys(state.params[def.key]) : [state.params[def.key]];
+  const options = def.type === 'chips'
+    ? [...new Set([...(state.footprintInfo?.keys || attributeKeys(def.def)), ...selected])]
+    : def.options;
+  const group = $(`p-${def.key}-buttons`);
+  const focused = group.contains(document.activeElement) ? document.activeElement.dataset.value : null;
+  group.innerHTML = options.map(value =>
+    `<button type="button" class="param-option" data-value="${esc(value)}" aria-pressed="${selected.includes(value)}">${esc(value)}</button>`).join('');
+  if (focused != null) [...group.querySelectorAll('button')].find(button => button.dataset.value === focused)?.focus();
+}
+
+function refreshIdOptions(keys = []) {
+  const el = $('p-id_field'), value = state.params.id_field || '';
+  const options = [...new Set([...keys, ...(value ? [value] : [])])];
+  el.innerHTML = '<option value="">Select a property</option>' + options.map(key =>
+    `<option value="${esc(key)}">${esc(key)}</option>`).join('');
+  el.value = value;
 }
 
 function mountParams() {
@@ -1253,6 +1290,20 @@ function mountParams() {
   for (const def of PARAMS) {
     const el = $(`p-${def.key}`);
     state.params[def.key] = def.def;
+    if (def.type === 'chips') setParam(def.key, attributeKeys(def.def));
+    if (def.type === 'segmented' || def.type === 'chips') {
+      const group = $(`p-${def.key}-buttons`);
+      group.addEventListener('click', event => {
+        const button = event.target.closest('[data-value]');
+        if (!button) return;
+        const value = button.dataset.value;
+        if (def.type === 'chips') {
+          const selected = attributeKeys(state.params[def.key]);
+          setParam(def.key, selected.includes(value) ? selected.filter(key => key !== value) : [...selected, value]);
+        } else setParam(def.key, value);
+      });
+      renderParamButtons(def);
+    }
     const ev = def.type === 'bool' || def.type === 'select' ? 'change' : 'input';
     el.addEventListener(ev, () => {
       state.params[def.key] = readParam(def, el);
@@ -1266,13 +1317,21 @@ function mountParams() {
 
 function setParam(key, value) {
   const def = PARAMS.find(p => p.key === key), el = $(`p-${key}`);
+  if (def.key === 'id_field') {
+    state.params.id_field = value || '';
+    refreshIdOptions(state.footprintInfo?.keys || []);
+  }
+  if (def.type === 'chips') value = JSON.stringify(attributeKeys(value));
   if (def.type === 'bool') el.checked = Boolean(value); else el.value = value;
   state.params[key] = readParam(def, el);
+  renderParamButtons(def);
   if (def.type === 'range') $(`p-${key}-out`).textContent = fmtParam(def, el.value);
 }
 
 function resetParams() {
-  for (const def of PARAMS) setParam(def.key, def.def);
+  for (const def of PARAMS) setParam(def.key,
+    def.type === 'chips' ? (state.footprintInfo?.keys || attributeKeys(def.def))
+      : def.key === 'id_field' && state.footprintInfo?.keys?.includes('id') ? 'id' : def.def);
   syncDependencies();
   renderFootprintInfo();
 }
@@ -1289,9 +1348,9 @@ function collectParams() {
   const out = {};
   for (const def of PARAMS) {
     let v = state.params[def.key];
-    if (def.type === 'text' || def.type === 'list') v = String(v ?? '').trim();
+    if (def.type === 'chips') { out[def.key] = [...v]; continue; }
+    if (def.type === 'text') v = String(v ?? '').trim();
     if (def.nullable && v === '') continue;
-    if (def.type === 'list') { out[def.key] = v.split(',').map(s => s.trim()).filter(Boolean); continue; }
     if (v === '' || v == null || Number.isNaN(v)) continue;
     out[def.key] = v;
   }
@@ -1377,7 +1436,11 @@ function mountFileSlots() {
    before uploading: missing/duplicate IDs and a wrong working CRS. */
 async function inspectFootprint(file) {
   state.footprintInfo = null;
-  if (!file) { renderFootprintInfo(); return; }
+  if (!file) {
+    setParam('id_field', '');
+    setParam('keep_properties', attributeKeys(PARAMS.find(def => def.key === 'keep_properties').def));
+    renderFootprintInfo(); return;
+  }
   if (file.size > FOOTPRINT_INSPECT_LIMIT) {
     state.footprintInfo = {status:'skipped'}; renderFootprintInfo(); return;
   }
@@ -1415,10 +1478,10 @@ async function inspectFootprint(file) {
       const zone = Math.min(60, Math.max(1, Math.floor((lon + 180) / 6) + 1));
       info.utm = {epsg: `EPSG:${(lat >= 0 ? 32600 : 32700) + zone}`, label: `UTM ${zone}${lat >= 0 ? 'N' : 'S'}`};
     }
-    $('id-field-options').innerHTML = info.keys.map(k => `<option value="${esc(k)}">`).join('');
     state.footprintInfo = info;
     const selected = keys.has('id') ? 'id' : (keys.has(state.params.id_field) ? state.params.id_field : '');
     setParam('id_field', selected);
+    setParam('keep_properties', info.keys);
   } catch (err) {
     state.footprintInfo = {status:'error', message: err.message};
   }
@@ -1439,7 +1502,7 @@ function idCheck() {
   if (!fi || fi.status !== 'ok') return {ok:true};
   const field = String(state.params.id_field ?? '') || 'id';
   const s = fieldStats(fi, field);
-  if (s.present < fi.count) return {ok:false, msg:`Properties key "${field}" is empty on ${intFmt(fi.count - s.present)} of ${intFmt(fi.count)} features. Choose or enter an ID properties key below.`};
+  if (s.present < fi.count) return {ok:false, msg:`Properties key "${field}" is empty on ${intFmt(fi.count - s.present)} of ${intFmt(fi.count)} features. Select an ID properties key below.`};
   if (s.dup) return {ok:false, msg:`Properties key "${field}" has ${intFmt(s.dup)} duplicate value${s.dup>1?'s':''}.`};
   return {ok:true, msg:`Building IDs from properties.${field}`};
 }

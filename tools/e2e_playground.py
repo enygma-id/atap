@@ -72,13 +72,42 @@ async def run(url, data, chromium, offline=False):
         await A.evaluate("""() => {
           state.footprintInfo.props = state.footprintInfo.props.map(p => ({building_code:p.id}));
           state.footprintInfo.fieldCache = {};
+          state.footprintInfo.keys = ['building_code'];
+          refreshIdOptions(state.footprintInfo.keys);
           renderFootprintInfo(); refreshRunButton();
         }""")
         check(await A.is_disabled("#btn-run"), "run blocked without selected properties key")
-        await A.fill("#p-id_field", "building_code"); await A.wait_for_timeout(200)
-        check(not await A.is_disabled("#btn-run"), "manual alternative properties key accepted")
+        await A.select_option("#p-id_field", "building_code"); await A.wait_for_timeout(200)
+        check(not await A.is_disabled("#btn-run"), "alternative properties key selected from dropdown")
         await A.close()
         A = await page_with_inputs(context, url, data, "footprints.geojson")
+        buttons = A.locator('#p-keep_properties-buttons button')
+        keys = await A.evaluate("state.footprintInfo.keys")
+        check(await buttons.count() == len(keys) and
+              await A.locator('#p-keep_properties-buttons button[aria-pressed="true"]').count() == len(keys),
+              "all footprint properties start active as attribute buttons")
+        await A.locator('#p-keep_properties-buttons button').first.click()
+        copied = await A.evaluate("collectParams().keep_properties")
+        check(len(copied) == len(keys) - 1, "attribute toggle excludes one property from request")
+        await A.locator('#p-keep_properties-buttons button').first.click()
+        for index in range(await buttons.count()):
+            await buttons.nth(index).click()
+        check(await A.evaluate("collectParams().keep_properties.length") == 0,
+              "all attribute toggles off sends an explicit empty array")
+        await A.evaluate("setParam('keep_properties', ['label,code'])")
+        check(await A.evaluate("collectParams().keep_properties") == ['label,code'],
+              "property keys containing commas stay intact")
+        await A.evaluate("resetParams()")
+        check(await A.input_value('#p-id_field') == 'id' and
+              await A.evaluate("collectParams().keep_properties") == keys,
+              "reset restores automatic ID and all footprint attributes")
+        for key, value in [('base_elevation_stat', 'median'), ('ground_source_type', 'DEM')]:
+            await A.locator(f'#p-{key}-buttons button[data-value="{value}"]').click()
+            check(await A.evaluate(f"collectParams().{key}") == value and
+                  await A.locator(f'#p-{key}-buttons button[aria-pressed="true"]').count() == 1,
+                  f"{key} button group selects exactly one value")
+        await A.locator('#p-base_elevation_stat-buttons button[data-value="min"]').click()
+        await A.locator('#p-ground_source_type-buttons button[data-value="DTM"]').click()
         check("matches the data area" in await A.inner_text("#footprint-info"), "UTM zone check")
         await A.click("#btn-run")
         await A.wait_for_function(f"{CHIP}.includes('TERRAIN') || {CHIP}.includes('FAILED')", timeout=180000)

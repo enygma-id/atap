@@ -12,7 +12,7 @@ atap run --input-geojson footprints.geojson --dsm dsm.tif --dtm dtm.tif \
 ```
 
 DTM is mandatory, DSM is the analysis grid, and output uses EPSG:4326. Stable
-Building IDs automatically come from `properties.id`. Use `--id-field FIELD` to select another properties key (this overrides `id`). Every feature must have a non-empty, unique value in the selected key. Top-level input `Feature.id` is ignored. The playground selects `id` when present and offers other property keys, including manual entry, in **ID attribute**.
+Building IDs automatically come from `properties.id`. Use `--id-field FIELD` to select another properties key (this overrides `id`). Every feature must have a non-empty, unique value in the selected key. Top-level input `Feature.id` is ignored. The playground selects `id` when present and lists footprint property keys in the **ID attribute** dropdown.
 
 | Flag | Default |
 |---|---|
@@ -89,3 +89,19 @@ Use `--work-dir`, `--max-upload-mb`, `--max-concurrent`,
 `--job-ttl-hours`, and `--grace-seconds` to set local resource limits.
 Binding `--host` beyond localhost exposes an unauthenticated service and emits
 a warning. CORS remains disabled unless `--cors-origin URL` is supplied.
+
+### Playground parameter controls
+
+**Ground height from DTM** uses a single-choice button group: min (default),
+mean, or median. **Terrain raster type** uses DTM (default) or DEM buttons.
+
+**ID attribute** is a dropdown populated from the footprint properties; `id`
+is selected automatically when available. CLI `--id-field` remains available
+for explicitly naming another source key.
+
+**Copy attributes** shows one toggle button per detected footprint property.
+All start active when a footprint is selected. Turn individual buttons off to
+exclude those properties, or turn all off to send an empty copy list. Reset
+reactivates all detected properties. The engine's CLI/API default list remains
+`id,NAMOBJ,REMARK,floor_est`; the playground explicitly sends its active list.
+Canonical output fields cannot be overwritten by copied source attributes.

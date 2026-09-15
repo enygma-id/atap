@@ -299,3 +299,20 @@ canonical engine contract and the repository has no callers that require it.
   `atap_YYYYMMDDTHHMMSSZ_<id>.geojson`. CLI naming remains explicit.
 - This is an execution change: no geometry, hierarchy, numerical output, schema,
   scientific defaults, or dependency changes.
+
+## ADR-017 Playground parameter choices
+
+**Status:** Accepted (pre-release v0.2.0).
+
+- Ground elevation statistic and terrain type use single-choice button groups,
+  preserving min and DTM defaults.
+- The ID field uses a dropdown of footprint properties, auto-selecting id.
+  Explicit property-key entry remains supported by the CLI/API.
+- Copy attributes uses independent toggle buttons. Every detected property
+  starts active on footprint selection and reset; no active buttons means an
+  explicit empty keep_properties array. Keys containing commas remain intact.
+- Before a footprint is inspected, initial choices match Config's copy defaults.
+  The playground sends its detected/selected list explicitly; engine defaults
+  and numerical algorithms are unchanged. Copied source attributes can differ
+  intentionally from the previous four-field playground selection.
+- Button state uses aria-pressed; keyboard focus is preserved after toggling.
