@@ -1,6 +1,6 @@
 # Elevation prototype golden outputs
 
-Frozen on 2026-09-12 from prototype commit `c76fa3c` (engine 0.2.0,
+Frozen on 2026-09-12 from prototype commit `3713847` (engine 0.2.0,
 profile 0.6), using synthetic inputs and `workers=1`. No scientific output,
 geometry, hierarchy, CRS behavior, schema, or defaults were changed.
 

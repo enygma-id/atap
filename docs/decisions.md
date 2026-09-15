@@ -1,8 +1,7 @@
 # ATAP Elevation — Decision Log
 
 Decisions taken while turning the original `elevation.py` into the ATAP
-engine prototype (`prototype/elevation.py`, engine 0.2.0 / profile 0.6)
-and the reference playground (`prototype/playground/index.html`).
+engine and packaged reference playground (engine 0.2.0 / profile 0.6).
 
 The normative contract is the ATAP Elevation specification maintained by
 the project maintainers; "§" numbers below refer to its sections (its public
@@ -256,7 +255,7 @@ tree kill after a grace period.
 
 ## ADR-014 Reference playground
 
-**Status:** Accepted (prototype), packaging integration Planned (v0.2.0).
+**Status:** Accepted (v0.2.0).
 
 - Single HTML file, no build step, deck.gl **9.3.11** pinned; loads
   `vendor/deck.gl-9.3.11.min.js` first and falls back to the same version on

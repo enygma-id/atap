@@ -7,8 +7,7 @@ End-to-end browser test of playground/index.html against mock_server.py
 
 Needs: pip install playwright && python -m playwright install chromium.
 Covers: preflight (ID + UTM), run, stats/skipped/header, part + building
-tooltips, acceptance Test C (ground toggle translates, never resizes) and Test G
-(explode never touches canonical data), engine failure surfaced in UI,
+tooltips and hierarchy tree, acceptance Tests C, F and G, engine failure surfaced in UI,
 queue position for a second user, cancel while queued / uploading /
 running, local file open, legacy-file rejection, tampered-file detection.
 Basemap tile errors are ignored (they depend on network access).
@@ -36,7 +35,7 @@ check.failed = 0
 
 
 async def page_with_inputs(browser, url, data, footprint="footprints_fid.geojson"):
-    pg = await browser.new_page(viewport={"width": 1400, "height": 900})
+    pg = await browser.new_page()
     pg.errs = []
     pg.on("pageerror", lambda e: pg.errs.append(str(e)))
     def on_console(m):
@@ -55,15 +54,18 @@ async def page_with_inputs(browser, url, data, footprint="footprints_fid.geojson
     return pg
 
 
-async def run(url, data, chromium):
+async def run(url, data, chromium, offline=False):
     async with async_playwright() as p:
         kw = {"args": ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"]}
         if chromium:
             kw["executable_path"] = chromium
         b = await p.chromium.launch(**kw)
+        context = await b.new_context(viewport={"width": 1400, "height": 900})
+        if offline:
+            await context.route("https://**/*", lambda route: route.abort())
 
         # --- preflight + main run -------------------------------------------------
-        A = await page_with_inputs(b, url, data, "footprints.geojson")
+        A = await page_with_inputs(context, url, data, "footprints.geojson")
         check(await A.is_disabled("#btn-run"), "run blocked when Feature.id missing and no ID attribute")
         await A.fill("#p-id_field", "id"); await A.wait_for_timeout(200)
         check(not await A.is_disabled("#btn-run"), "run enabled after ID attribute set")
@@ -102,6 +104,42 @@ async def run(url, data, chromium):
         await A.mouse.move(pt[0], pt[1]); await A.wait_for_timeout(600)
         check("Raster evidence".upper() in (await A.inner_text("#tooltip")).upper(), "part tooltip on hover")
 
+        # --- hierarchy tree / spec Test F -------------------------------------------
+        tree_before = await A.evaluate("JSON.stringify(state.data)")
+        await A.click("#mode-building")
+        grouping = await A.evaluate("""() => [...state.byObject].every(([oid, parts]) =>
+          parts.length > 0 && parts.every(f => f.properties.object_id === oid) &&
+          parts.every(f => f.properties.parent_part_id == null ||
+            parts.some(parent => parent.properties.part_id === f.properties.parent_part_id)))""")
+        check(grouping, "Test F: parts group by object_id and parents stay within the building")
+        pinned = await A.evaluate("""() => {
+          const feature = state.byObject.get('B2')[0];
+          const layer = deckgl.props.layers.find(layer => layer.id === 'atap-parts');
+          layer.props.onClick({object: feature});
+          return state.pinnedObjectId;
+        }""")
+        await A.wait_for_selector("#hierarchy-tree")
+        rows = A.locator("#hierarchy-tree [data-tree-part]")
+        check(pinned == "B2" and await rows.count() == 2, "building click pins its complete hierarchy")
+        text = await A.inner_text("#hierarchy-tree")
+        check("Level 0" in text and "Level 1" in text and "m³" in text,
+              "tree shows level, AGL interval and volume")
+        first = rows.first
+        await first.hover()
+        check(await A.evaluate("Boolean(state.treeHoveredPartId)"), "tree hover highlights one part")
+        await first.focus()
+        check(await A.evaluate("document.activeElement.hasAttribute('data-tree-part')"),
+              "tree nodes accept keyboard focus")
+        root = A.locator("#hierarchy-tree details").first
+        await root.locator(":scope > summary").click()
+        check(not await root.evaluate("node => node.open"), "hierarchy nodes collapse")
+        check(tree_before == await A.evaluate("JSON.stringify(state.data)"),
+              "Test G: tree interactions leave canonical data unchanged")
+        min_font = await A.evaluate("""() => Math.min(...[...document.querySelectorAll('.panel *')]
+          .filter(el => el.textContent.trim() && getComputedStyle(el).display !== 'none')
+          .map(el => parseFloat(getComputedStyle(el).fontSize)).filter(Number.isFinite))""")
+        check(min_font >= 10, f"visible panel text is at least 10 px ({min_font}px)")
+
         # --- engine failure surfaced ---------------------------------------------------
         await A.click("#tab-btn-run"); await A.fill("#p-working_crs", "EPSG:4326")
         await A.click("#btn-run")
@@ -111,9 +149,14 @@ async def run(url, data, chromium):
         await A.click("#btn-use-utm")
 
         # --- queue + cancel ----------------------------------------------------------------
-        B = await page_with_inputs(b, url, data)
-        C = await page_with_inputs(b, url, data)
-        await B.click("#btn-run"); await B.wait_for_timeout(200)
+        queue_data = os.path.join(os.path.dirname(data), "bench")
+        if not os.path.isdir(queue_data):
+            queue_data = data
+        B = await page_with_inputs(context, url, queue_data)
+        C = await page_with_inputs(context, url, queue_data)
+        await B.evaluate("state.params.workers = 1; document.getElementById('p-workers').value = 1")
+        await C.evaluate("state.params.workers = 1; document.getElementById('p-workers').value = 1")
+        await B.click("#btn-run")
         check(await B.inner_text("#btn-run-label") == "Cancel upload", "button guards against double submit during upload")
         await B.wait_for_function(f"!{CHIP}.includes('UPLOADING')", timeout=60000)
         await C.click("#btn-run")
@@ -140,7 +183,7 @@ async def run(url, data, chromium):
 
         errs = A.errs + B.errs + C.errs
         check(not errs, f"no page errors ({errs[:3]})")
-        await b.close()
+        await context.close(); await b.close()
 
 
 def main():
@@ -148,6 +191,7 @@ def main():
     ap.add_argument("--data", required=True, help="stepped dataset dir from make_synthetic.py")
     ap.add_argument("--url", help="use a running server instead of starting mock_server.py")
     ap.add_argument("--chromium", help="custom chromium executable")
+    ap.add_argument("--offline", action="store_true", help="block external requests")
     a = ap.parse_args()
     srv = None
     url = a.url
@@ -157,7 +201,7 @@ def main():
         time.sleep(1.5)
         url = "http://127.0.0.1:8765/"
     try:
-        asyncio.run(run(url, os.path.abspath(a.data), a.chromium))
+        asyncio.run(run(url, os.path.abspath(a.data), a.chromium, a.offline))
     finally:
         if srv:
             srv.terminate()

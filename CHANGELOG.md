@@ -11,6 +11,8 @@ All notable public changes to ATAP should be documented here.
 - isolated engine execution in CLI subprocesses and kept the server process
   free of engine-pipeline imports;
 - packaged the reference playground and pinned deck.gl bundle for offline use;
+- added a pinned, collapsible building hierarchy tree with part-level metrics
+  and keyboard-accessible highlighting, then removed the transitional prototype;
 - added HTTP, security, TTL, subprocess and browser integration tests.
 
 ### Packaged engine and CLI

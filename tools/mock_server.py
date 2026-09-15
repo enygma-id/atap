@@ -29,7 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 import atap as E  # noqa: E402
 from atap.engine.config import ENGINE_VERSION  # noqa: E402
 
-ROOT = os.path.normpath(os.path.join(HERE, "..", "prototype", "playground"))
+ROOT = os.path.normpath(os.path.join(HERE, "..", "src", "atap", "server", "static"))
 WORK = None  # created in main(); spawn workers import this module too
 MAX_UPLOAD_MB = int(os.environ.get("MOCK_MAX_UPLOAD_MB", "2048"))
 JOBS = {}; Q = []; LOCK = threading.Lock(); DELAY = float(os.environ.get("MOCK_DELAY", "0"))
