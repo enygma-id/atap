@@ -70,7 +70,20 @@ atap serve
 
 Open `http://127.0.0.1:8000/`. Jobs run through isolated `atap run`
 subprocesses and wait in a FIFO queue. Uploaded rasters are restricted to
-GeoTIFF, and job files expire after 24 hours by default.
+GeoTIFF. In the playground, select the three files and run once. Subsequent
+runs with the same selected files send only parameters and reuse the uploaded
+input. Changing any selected file uploads a new input set. Reuse is scoped to
+the current browser session; refreshing the page requires selecting and uploading
+files again. If retained input expires or the server restarts, the playground
+automatically uploads the selected files again.
+
+Each run has separate output, parameters, log, and cancellation files. Input
+is retained while a consuming job is queued or running; its default 24-hour
+retention is refreshed on reuse and when that job finishes. Output downloads
+are named `atap_YYYYMMDDTHHMMSSZ_<8-character-job-id>.geojson` using the UTC
+submission time. The server keeps the fixed internal name `output.geojson`
+inside each unique job folder. CLI output names remain controlled by `--output`.
+See [HTTP API](api.md) for parameter-only submission.
 
 Use `--work-dir`, `--max-upload-mb`, `--max-concurrent`,
 `--job-ttl-hours`, and `--grace-seconds` to set local resource limits.

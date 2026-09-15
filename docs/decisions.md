@@ -279,3 +279,23 @@ tree kill after a grace period.
 The prototype accepted `embed_ground_z` as an ignored compatibility option.
 The packaged public API removes it because renderer Z state is outside the
 canonical engine contract and the repository has no callers that require it.
+
+## ADR-016 Reuse uploaded input and name result downloads
+
+**Status:** Accepted (pre-release v0.2.0).
+
+- `POST /api/jobs` accepts either all three files or `source_job_id` plus params.
+  UUID lookup resolves a retained job's original input directory; clients never
+  submit paths. Reuse reads the same files without copying rasters.
+- Parameters, output, log, and cancellation remain in a new UUID folder per run.
+  Cancelling a consumer does not cancel or mutate its source.
+- Cleanup and reuse submission share a lock. Active consumers pin their input;
+  submission and completion refresh retention. Restart clears reusable references.
+- The playground caches the accepted job and exact selected File objects for
+  this session. File changes upload a new set; a missing source triggers one
+  automatic upload fallback. No cross-session or content-hash deduplication.
+- Internal artifact names stay fixed. Output download names use the UTC
+  submission timestamp plus eight UUID characters, stable for each job:
+  `atap_YYYYMMDDTHHMMSSZ_<id>.geojson`. CLI naming remains explicit.
+- This is an execution change: no geometry, hierarchy, numerical output, schema,
+  scientific defaults, or dependency changes.

@@ -12,6 +12,8 @@ Environment:
     MOCK_MAX_UPLOAD_MB   upload limit reported to the browser (default 2048)
     MOCK_DELAY           seconds to wait before each job starts (tests only)
 """
+from datetime import datetime, timezone
+from datetime import datetime, timezone
 import email.parser
 import email.policy
 import json
@@ -47,13 +49,13 @@ def worker():
                 for i, j in enumerate(Q): emit(j, {"type": "queued", "position": i + 1})
         if not job: time.sleep(0.1); continue
         emit(job, {"type": "started"}); time.sleep(DELAY)
-        d = job["dir"]; logf = open(os.path.join(d, "run.log"), "w")
+        d = job["dir"]; inputs = job["inputs"]; logf = open(os.path.join(d, "run.log"), "w")
         def log(m): logf.write(m + "\n"); emit(job, {"type": "log", "message": m})
         def prog(c, t, m): emit(job, {"type": "progress", "current": c, "total": t, "message": m})
         try:
             params = job["params"]
-            r = E.run_elevation(os.path.join(d, "footprint.geojson"), os.path.join(d, "dtm.tif"),
-                                os.path.join(d, "dsm.tif"), os.path.join(d, "output.geojson"),
+            r = E.run_elevation(os.path.join(inputs, "footprint.geojson"), os.path.join(inputs, "dtm.tif"),
+                                os.path.join(inputs, "dsm.tif"), os.path.join(d, "output.geojson"),
                                 progress_cb=prog, log_cb=log, cancel_flag=lambda: job["cancel"], **params)
             if r["cancelled"]: job["status"] = "cancelled"; emit(job, {"type": "cancelled"})
             else: job["status"] = "completed"; job["result"] = r; emit(job, {"type": "completed", "result": {k: r[k] for k in ("num_features", "num_buildings", "num_skipped")}})
@@ -63,9 +65,11 @@ def worker():
 
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
-    def send(self, code, obj=None, ctype="application/json", body=None):
+    def send(self, code, obj=None, ctype="application/json", body=None, filename=None):
         b = body if body is not None else json.dumps(obj).encode()
-        self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+        self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Content-Length", str(len(b)))
+        if filename: self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.end_headers(); self.wfile.write(b)
     def do_GET(self):
         p = self.path.split("?")[0]
         if p == "/api/health":
@@ -86,7 +90,9 @@ class H(BaseHTTPRequestHandler):
             if parts[4] == "artifacts":
                 f = {"output": "output.geojson", "log": "run.log"}.get(parts[5]); fp = os.path.join(job["dir"], f or "x")
                 if not f or not os.path.exists(fp): return self.send(404, {"detail": "not found"})
-                return self.send(200, ctype="application/geo+json" if f.endswith("json") else "text/plain", body=open(fp, "rb").read())
+                stamp = datetime.fromtimestamp(job["created_at"], timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                filename = f"atap_{stamp}_{job['id'][:8]}.geojson" if f.endswith("json") else f
+                return self.send(200, filename=filename, ctype="application/geo+json" if f.endswith("json") else "text/plain", body=open(fp, "rb").read())
         f = "index.html" if p == "/" else p.lstrip("/")
         fp = os.path.normpath(os.path.join(ROOT, f))
         if fp.startswith(ROOT) and os.path.isfile(fp):
@@ -99,14 +105,24 @@ class H(BaseHTTPRequestHandler):
             msg = email.parser.BytesParser(policy=email.policy.default).parsebytes(
                 f"Content-Type: {self.headers['Content-Type']}\r\n\r\n".encode() + raw)
             fields = {part.get_param("name", header="content-disposition"): part.get_payload(decode=True) for part in msg.iter_parts()}
-            for k in ("footprint", "dsm", "dtm"):
-                if k not in fields: return self.send(422, {"detail": f"missing file: {k}"})
-            jid = uuid.uuid4().hex[:12]; d = os.path.join(WORK, jid); os.makedirs(d)
-            for k, name in (("footprint", "footprint.geojson"), ("dsm", "dsm.tif"), ("dtm", "dtm.tif")): open(os.path.join(d, name), "wb").write(fields[k])
+            source_id = fields.get("source_job_id")
+            if source_id:
+                if any(k in fields for k in ("footprint", "dsm", "dtm")):
+                    return self.send(422, {"detail": "mixed input sources"})
+                source = JOBS.get(source_id.decode())
+                if not source: return self.send(404, {"detail": "unknown input source"})
+                inputs = source["inputs"]; count = source["count"]
+            else:
+                for k in ("footprint", "dsm", "dtm"):
+                    if k not in fields: return self.send(422, {"detail": f"missing file: {k}"})
+            jid = str(uuid.uuid4()); d = os.path.join(WORK, jid); os.makedirs(d)
+            if not source_id:
+                inputs = d
+                for k, name in (("footprint", "footprint.geojson"), ("dsm", "dsm.tif"), ("dtm", "dtm.tif")): open(os.path.join(d, name), "wb").write(fields[k])
+                fc = json.loads(fields["footprint"]); count = len(fc.get("features", []))
             params = json.loads(fields.get("params", b"{}"))
-            fc = json.loads(fields["footprint"]); count = len(fc.get("features", []))
             with LOCK:
-                job = {"id": jid, "dir": d, "params": params, "status": "queued", "cancel": False, "events": [], "subs": []}
+                job = {"id": jid, "dir": d, "inputs": inputs, "count": count, "created_at": time.time(), "params": params, "status": "queued", "cancel": False, "events": [], "subs": []}
                 JOBS[jid] = job; Q.append(job)
                 pos = Q.index(job) + (1 if any(j["status"] == "running" for j in JOBS.values()) else 0)
             if pos > 0: emit(job, {"type": "queued", "position": pos})

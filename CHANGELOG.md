@@ -13,6 +13,10 @@ All notable public changes to ATAP should be documented here.
 
 ### Local server
 
+- reuse uploaded playground input across parameter-only runs without raster
+  copies, with retention protection and automatic reupload after expiration;
+- name output downloads with a UTC timestamp and short job identifier;
+
 - added `atap serve` with the API v1 job queue, SSE progress, fixed artifacts,
   streamed upload limits, cooperative cancellation and process-tree cleanup;
 - isolated engine execution in CLI subprocesses and kept the server process

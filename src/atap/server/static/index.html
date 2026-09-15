@@ -320,6 +320,7 @@
       <input id="file-dsm" type="file" accept=".tif,.tiff" hidden>
       <input id="file-dtm" type="file" accept=".tif,.tiff" hidden>
 
+      <div class="hint">Input is uploaded once per selection and reused when only parameters change. Changing a file uploads a new input set.</div>
       <div id="footprint-info"></div>
 
       <div class="hint">
@@ -458,7 +459,7 @@
      GET  /api/health
           -> {version, source_url, running_jobs, queued_jobs,
               max_concurrent, max_upload_mb}
-     POST /api/jobs            multipart: footprint, dsm, dtm, params(JSON)
+     POST /api/jobs            multipart: footprint, dsm, dtm OR source_job_id; params(JSON)
           -> {job_id, footprint_count, queue_position}
      GET  /api/jobs/{id}       -> {status: queued|running|completed|
                                    failed|cancelled, result?, error?,
@@ -472,6 +473,8 @@
      GET  /api/jobs/{id}/artifacts/output   ATAP GeoJSON (EPSG:4326)
      GET  /api/jobs/{id}/artifacts/log      run log (text)
    ========================================================================= */
+/* POST /api/jobs accepts either three files or source_job_id plus params.
+   Output downloads use atap_<UTC timestamp>_<8-character job ID>.geojson. */
 'use strict';
 
 if (!window.deck) {
@@ -496,6 +499,7 @@ const state = {
   apiBase: location.protocol.startsWith('http') ? location.origin : 'http://localhost:8000',
   service: null,          // /api/health payload
   files: {footprint: null, dsm: null, dtm: null},
+  reusableInputs: null,  // accepted job and exact File objects for this browser session
   footprintInfo: null,    // client-side preflight of the footprint file
   params: {},
   job: null,
@@ -1545,27 +1549,41 @@ function errorText(payload, status) {
 }
 
 async function startRun() {
-  const body = new FormData();
-  body.append('footprint', state.files.footprint);
-  body.append('dsm', state.files.dsm);
-  body.append('dtm', state.files.dtm);
-  body.append('params', JSON.stringify(collectParams()));
+  const files = {...state.files}, params = collectParams();
+  const cached = state.reusableInputs;
+  let reuse = cached && cached.apiBase === state.apiBase &&
+    Object.keys(files).every(key => files[key] === cached.files[key]);
+  const requestBody = () => {
+    const body = new FormData();
+    if (reuse) body.append('source_job_id', cached.jobId);
+    else for (const [key, file] of Object.entries(files)) body.append(key, file);
+    body.append('params', JSON.stringify(params));
+    return body;
+  };
 
   $('progress').style.display = 'block';
   $('log').innerHTML = '';
   $('log').style.display = 'none';
-  setProgress(0, 0, 'Uploading input…');
-  setChip('', 'UPLOADING');
+  setProgress(0, 0, reuse ? 'Reusing uploaded input…' : 'Uploading input…');
+  setChip('', reuse ? 'REUSING INPUT' : 'UPLOADING');
 
   let job;
   state.upload = new AbortController();
   refreshRunButton();
   try {
-    const res = await fetch(`${state.apiBase}/api/jobs`, {method:'POST', body, signal: state.upload.signal});
+    let res = await fetch(`${state.apiBase}/api/jobs`, {method:'POST', body:requestBody(), signal:state.upload.signal});
+    if (reuse && res.status === 404) {
+      state.reusableInputs = null;
+      reuse = false;
+      setProgress(0, 0, 'Previous input expired. Uploading input again…');
+      setChip('', 'UPLOADING');
+      res = await fetch(`${state.apiBase}/api/jobs`, {method:'POST', body:requestBody(), signal:state.upload.signal});
+    }
     const payload = await res.json().catch(() => ({}));
     state.upload = null;
     if (!res.ok) { failRun(errorText(payload, res.status), false); return; }
     job = payload;
+    state.reusableInputs = {jobId:job.job_id, files, apiBase:state.apiBase};
   } catch (err) {
     const aborted = err.name === 'AbortError';
     state.upload = null;
@@ -1579,6 +1597,7 @@ async function startRun() {
 
   state.job = job.job_id;
   refreshRunButton();
+  logLine(reuse ? 'Reused uploaded input; only parameters were sent.' : 'Input uploaded; subsequent runs can reuse it.');
   logLine(`Job ${job.job_id} accepted · ${job.footprint_count ?? '?'} footprints`);
   if (job.queue_position > 0) setQueued(job.queue_position);
   else { setChip('', 'RUNNING'); setProgress(0, job.footprint_count || 0, 'Starting…'); }

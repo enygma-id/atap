@@ -19,6 +19,7 @@ import warnings
 from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -67,6 +68,7 @@ class Job:
     job_id: str
     directory: Path
     footprint_count: int
+    input_directory: Path | None = None
     status: str = "queued"
     created_at: float = field(default_factory=time.time)
     started_at: float | None = None
@@ -191,11 +193,12 @@ class JobManager:
 
     def _default_command(self, job: Job) -> list[str]:
         directory = job.directory
+        inputs = job.input_directory or directory
         return [
             sys.executable, "-m", "atap", "run",
-            "--input-geojson", str(directory / "footprint.geojson"),
-            "--dsm", str(directory / "dsm.tif"),
-            "--dtm", str(directory / "dtm.tif"),
+            "--input-geojson", str(inputs / "footprint.geojson"),
+            "--dsm", str(inputs / "dsm.tif"),
+            "--dtm", str(inputs / "dtm.tif"),
             "--output", str(directory / "output.geojson"),
             "--params-json", str(directory / "params.json"),
             "--events", "jsonl",
@@ -203,8 +206,10 @@ class JobManager:
             "--raster-drivers", "GTiff",
         ]
 
-    def submit(self, directory: Path, footprint_count: int) -> Job:
-        job = Job(directory.name, directory, footprint_count)
+    def submit(
+        self, directory: Path, footprint_count: int, input_directory: Path | None = None,
+    ) -> Job:
+        job = Job(directory.name, directory, footprint_count, input_directory=input_directory)
         with self.lock:
             self.jobs[job.job_id] = job
             self.queue.append(job.job_id)
@@ -311,6 +316,9 @@ class JobManager:
     def _finish(self, job: Job, status: str, event: dict[str, Any]) -> None:
         job.status = status
         job.finished_at = time.time()
+        os.utime(job.directory, None)
+        if job.input_directory is not None:
+            os.utime(job.input_directory, None)
         job.process = None
         self.running.discard(job.job_id)
         self._event(job, event)
@@ -373,20 +381,25 @@ class JobManager:
 
     def cleanup_expired(self) -> None:
         cutoff = time.time() - self.config.job_ttl_hours * 3600
-        for directory in self.config.work_dir.iterdir():
-            if not directory.is_dir() or directory.stat().st_mtime >= cutoff:
-                continue
-            try:
-                uuid.UUID(directory.name)
-            except ValueError:
-                continue
-            with self.lock:
-                job = self.jobs.get(directory.name)
-                if job is not None and job.status not in TERMINAL_STATES:
+        with self.lock:
+            protected = {
+                (job.input_directory or job.directory).resolve()
+                for job in self.jobs.values() if job.status not in TERMINAL_STATES
+            }
+            for directory in self.config.work_dir.iterdir():
+                if not directory.is_dir() or directory.stat().st_mtime >= cutoff:
                     continue
-            if directory.resolve().parent == self.config.work_dir.resolve():
-                shutil.rmtree(directory)
-                with self.lock:
+                try:
+                    uuid.UUID(directory.name)
+                except ValueError:
+                    continue
+                job = self.jobs.get(directory.name)
+                if directory.resolve() in protected or (
+                    job is not None and job.status not in TERMINAL_STATES
+                ):
+                    continue
+                if directory.resolve().parent == self.config.work_dir.resolve():
+                    shutil.rmtree(directory)
                     self.jobs.pop(directory.name, None)
 
     def _cleanup_loop(self) -> None:
@@ -451,41 +464,60 @@ def create_app(
 
     @app.post("/api/jobs")
     async def create_job(
-        footprint: UploadFile = File(...),
-        dsm: UploadFile = File(...),
-        dtm: UploadFile = File(...),
+        footprint: UploadFile | None = File(None),
+        dsm: UploadFile | None = File(None),
+        dtm: UploadFile | None = File(None),
         params: str = Form("{}"),
+        source_job_id: str | None = Form(None),
     ) -> JSONResponse:
         parsed = _validate_params(params)
-        job_id = str(uuid.uuid4())
-        directory = config.work_dir / job_id
-        directory.mkdir(parents=True)
-        total = 0
-        try:
-            for upload, name in (
-                (footprint, "footprint.geojson"),
-                (dsm, "dsm.tif"),
-                (dtm, "dtm.tif"),
-            ):
-                with (directory / name).open("wb") as target:
-                    while chunk := await upload.read(UPLOAD_CHUNK):
-                        total += len(chunk)
-                        if total > config.max_upload_mb * 1024 * 1024:
-                            raise HTTPException(413, "Upload size limit exceeded")
-                        target.write(chunk)
-            count = _read_footprints(directory / "footprint.geojson")
-            (directory / "params.json").write_text(
-                json.dumps(parsed), encoding="utf-8"
-            )
-            job = manager.submit(directory, count)
-            return JSONResponse({
-                "job_id": job.job_id,
-                "footprint_count": count,
-                "queue_position": manager.snapshot(job).get("queue_position", 0),
-            })
-        except Exception:
-            shutil.rmtree(directory, ignore_errors=True)
-            raise
+        uploads = (footprint, dsm, dtm)
+        if source_job_id is not None:
+            if any(upload is not None for upload in uploads):
+                raise HTTPException(422, "Use source_job_id or all three files, not both")
+            # Reserve the shared inputs and submit under the cleanup lock.
+            with manager.lock:
+                source = get_job(source_job_id)
+                inputs = source.input_directory or source.directory
+                if not all((inputs / name).is_file() for name in (
+                    "footprint.geojson", "dsm.tif", "dtm.tif",
+                )):
+                    raise HTTPException(404, "Uploaded inputs are no longer available")
+                directory = config.work_dir / str(uuid.uuid4())
+                directory.mkdir()
+                try:
+                    (directory / "params.json").write_text(json.dumps(parsed), encoding="utf-8")
+                    os.utime(inputs, None)
+                    job = manager.submit(directory, source.footprint_count, inputs)
+                except Exception:
+                    shutil.rmtree(directory, ignore_errors=True)
+                    raise
+        else:
+            if any(upload is None for upload in uploads):
+                raise HTTPException(422, "All three input files are required without source_job_id")
+            directory = config.work_dir / str(uuid.uuid4())
+            directory.mkdir(parents=True)
+            total = 0
+            try:
+                for upload, name in zip(uploads, ("footprint.geojson", "dsm.tif", "dtm.tif")):
+                    assert upload is not None
+                    with (directory / name).open("wb") as target:
+                        while chunk := await upload.read(UPLOAD_CHUNK):
+                            total += len(chunk)
+                            if total > config.max_upload_mb * 1024 * 1024:
+                                raise HTTPException(413, "Upload size limit exceeded")
+                            target.write(chunk)
+                count = _read_footprints(directory / "footprint.geojson")
+                (directory / "params.json").write_text(json.dumps(parsed), encoding="utf-8")
+                job = manager.submit(directory, count)
+            except Exception:
+                shutil.rmtree(directory, ignore_errors=True)
+                raise
+        return JSONResponse({
+            "job_id": job.job_id,
+            "footprint_count": job.footprint_count,
+            "queue_position": manager.snapshot(job).get("queue_position", 0),
+        })
 
     def get_job(job_id: str) -> Job:
         try:
@@ -532,11 +564,14 @@ def create_app(
         if kind not in names:
             raise HTTPException(404, "Artifact not found")
         name = names[kind]
-        path = get_job(job_id).directory / name
+        job = get_job(job_id)
+        path = job.directory / name
         if not path.is_file():
             raise HTTPException(404, "Artifact not found")
         media_type = "application/geo+json" if kind == "output" else "text/plain"
-        return FileResponse(path, filename=name, media_type=media_type)
+        stamp = datetime.fromtimestamp(job.created_at, timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        filename = f"atap_{stamp}_{job.job_id[:8]}.geojson" if kind == "output" else name
+        return FileResponse(path, filename=filename, media_type=media_type)
 
     return app
 

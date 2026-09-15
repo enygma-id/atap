@@ -16,6 +16,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -148,6 +149,52 @@ async def run(url, data, chromium, offline=False):
           .filter(el => el.textContent.trim() && getComputedStyle(el).display !== 'none')
           .map(el => parseFloat(getComputedStyle(el).fontSize)).filter(Number.isFinite))""")
         check(min_font >= 10, f"visible panel text is at least 10 px ({min_font}px)")
+
+        # --- reuse transport, file changes, expiry, and download names ------------------
+        await A.click("#tab-btn-run")
+        submitted = []
+        def record_submit(request):
+            if request.method == "POST" and request.url.endswith("/api/jobs"):
+                body = request.post_data_buffer or b""
+                # Chromium postData omits uploaded Blob fields; the server's
+                # mutually exclusive input contract identifies upload requests.
+                reuse = b'name="source_job_id"' in body
+                submitted.append({"reuse": reuse, "files": not reuse, "size": len(body)})
+        A.on("request", record_submit)
+        canonical = """() => {
+          const d = JSON.parse(JSON.stringify(state.data));
+          delete d.process; delete d.processing.execution; return JSON.stringify(d);
+        }"""
+        original = await A.evaluate(canonical)
+        async def rerun():
+            previous = await A.evaluate("state.activeRun")
+            await A.click("#btn-run")
+            await A.wait_for_function("previous => state.activeRun !== previous && !state.job", arg=previous,
+                                     timeout=60000)
+        await A.evaluate("setParam('workers', 2)")
+        await rerun()
+        check(submitted[-1]["reuse"] and not submitted[-1]["files"] and submitted[-1]["size"] < 5000,
+              "parameter rerun sends only source reference and parameters")
+        check(original == await A.evaluate(canonical), "reused input gives equivalent output with workers 2")
+        job_id = await A.evaluate("state.activeRun")
+        response = await A.request.get(f"{url.rstrip('/')}/api/jobs/{job_id}/artifacts/output")
+        check(bool(re.search(r'atap_\d{8}T\d{6}Z_' + job_id[:8] + r'\.geojson',
+                             response.headers.get("content-disposition", ""))), "output download has UTC timestamp and job ID")
+        await A.set_input_files("#file-dsm", [])
+        await A.set_input_files("#file-dsm", os.path.join(data, "dsm.tif"))
+        await rerun()
+        check(submitted[-1]["files"] and not submitted[-1]["reuse"], "changing a selected file uploads new input")
+        await A.evaluate("state.reusableInputs.jobId = '00000000-0000-0000-0000-000000000001'")
+        previous_count = len(submitted)
+        previous_errors = len(A.errs)
+        await rerun()
+        check(len(submitted) == previous_count + 2 and submitted[-2]["reuse"] and submitted[-1]["files"],
+              "expired input reference automatically falls back to upload")
+        # Only this deliberate missing-source response is expected to log 404.
+        A.errs = [err for index, err in enumerate(A.errs)
+                  if index < previous_errors or not (
+                      "404 (Not Found)" in err and err.endswith("/api/jobs"))]
+
 
         # --- engine failure surfaced ---------------------------------------------------
         await A.click("#tab-btn-run"); await A.fill("#p-working_crs", "EPSG:4326")
