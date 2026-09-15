@@ -2,7 +2,7 @@
 
 Install the core package with `pip install .`. Optional footprint formats use
 `pip install ".[formats]"`; server dependencies use `pip install ".[server]"`;
-contributors use `pip install -e ".[dev]"`.
+contributors use `pip install -e ".[dev,server]"`.
 
 ## Run elevation
 
@@ -57,5 +57,22 @@ problem is found.
 
 Exit statuses are 0 for success, 2 for input or contract errors, 3 for output
 validation errors, 4 for unexpected internal errors, and 130 for interruption
-or cancellation. `atap --version` prints engine and profile versions. `atap
-serve` is reserved for the local server delivered in Phase 2.
+or cancellation. `atap --version` prints engine and profile versions.
+
+## Serve the local playground
+
+Install the server extra, then start the API and playground on localhost:
+
+```sh
+pip install ".[server]"
+atap serve
+```
+
+Open `http://127.0.0.1:8000/`. Jobs run through isolated `atap run`
+subprocesses and wait in a FIFO queue. Uploaded rasters are restricted to
+GeoTIFF, and job files expire after 24 hours by default.
+
+Use `--work-dir`, `--max-upload-mb`, `--max-concurrent`,
+`--job-ttl-hours`, and `--grace-seconds` to set local resource limits.
+Binding `--host` beyond localhost exposes an unauthenticated service and emits
+a warning. CORS remains disabled unless `--cors-origin URL` is supplied.

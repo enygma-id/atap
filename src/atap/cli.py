@@ -20,7 +20,6 @@ from .engine.config import (
     AtapInputError,
     AtapValidationError,
 )
-from .engine.pipeline import run_elevation
 
 RUN_FIELDS = (
     "id_field", "height_diff_threshold_m", "min_subregion_area_m2",
@@ -31,6 +30,13 @@ RUN_FIELDS = (
     "rectangular_ratio", "circularity_threshold", "keep_properties",
     "working_crs", "round_digits", "workers", "gdal_cache_mb", "raster_drivers",
 )
+
+
+def run_elevation(*args, **kwargs):
+    """Invoke the engine without importing it in the server process."""
+    from .engine.pipeline import run_elevation as engine_run
+
+    return engine_run(*args, **kwargs)
 
 
 def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
@@ -79,7 +85,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     _add_run_arguments(run)
     validate = commands.add_parser("validate", help="Validate an ATAP GeoJSON file")
     validate.add_argument("file", type=Path)
-    commands.add_parser("serve", help="Start the local server (available in Phase 2)")
+    serve = commands.add_parser("serve", help="Start the local HTTP API and playground")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--work-dir", type=Path)
+    serve.add_argument("--max-upload-mb", type=int, default=1024)
+    serve.add_argument("--max-concurrent", type=int, default=1)
+    serve.add_argument("--job-ttl-hours", type=float, default=24)
+    serve.add_argument("--grace-seconds", type=float, default=30)
+    serve.add_argument("--cors-origin")
     return parser.parse_args(argv)
 
 
@@ -252,7 +266,11 @@ def _main(argv: list[str] | None = None) -> int:
             return 3
         print(f"Valid ATAP GeoJSON: {args.file}", file=sys.stderr)
         return 0
-    raise AtapInputError("The local server is implemented in Phase 2.")
+    if args.command == "serve":
+        from .server import serve
+
+        return serve(args)
+    raise AtapInputError(f"Unknown command: {args.command}")
 
 
 def main(argv: list[str] | None = None) -> int:

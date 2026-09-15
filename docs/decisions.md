@@ -247,7 +247,7 @@ against golden outputs frozen from the prototype.
 
 ## ADR-013 Server runs jobs through the CLI
 
-**Status:** Planned (v0.2.0 server).
+**Status:** Accepted (v0.2.0).
 
 `atap serve` launches `python -m atap run … --events jsonl --cancel-file …`
 per job. There is one running job at a time by default (queue with

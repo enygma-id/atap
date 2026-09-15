@@ -10,7 +10,7 @@ import numpy as np
 import rasterio
 from pyproj import CRS
 from rasterio.enums import Resampling
-from rasterio.errors import WindowError
+from rasterio.errors import RasterioIOError, WindowError
 from rasterio.vrt import WarpedVRT
 from rasterio.warp import transform_bounds
 from rasterio.windows import Window, from_bounds
@@ -60,7 +60,10 @@ class AnalysisGrid:
 def open_dsm_master_grid(cfg: Config, work_crs: CRS):
     if not cfg.dsm_path or not os.path.isfile(cfg.dsm_path):
         raise AtapInputError(f"DSM is required and was not found: {cfg.dsm_path!r}")
-    dsm_src = rasterio.open(cfg.dsm_path, driver=_raster_driver(cfg))
+    try:
+        dsm_src = rasterio.open(cfg.dsm_path, driver=_raster_driver(cfg))
+    except RasterioIOError as exc:
+        raise AtapInputError(f"Cannot open DSM as an allowed raster: {exc}") from exc
     if dsm_src.crs is None:
         dsm_src.close()
         raise AtapInputError(f"Cannot determine DSM CRS: {cfg.dsm_path}")
@@ -84,7 +87,13 @@ def align_dtm_to_dsm(cfg: Config, work_crs: CRS, dsm_src, dsm_reader, dsm_warped
         raise AtapInputError("DTM is required for ATAP processing; --dtm was not provided.")
     if not os.path.isfile(cfg.dtm_path):
         raise AtapInputError(f"DTM is required and was not found: {cfg.dtm_path}")
-    dtm_src = rasterio.open(cfg.dtm_path, driver=_raster_driver(cfg))
+    try:
+        dtm_src = rasterio.open(cfg.dtm_path, driver=_raster_driver(cfg))
+    except RasterioIOError as exc:
+        dsm_reader.close()
+        if dsm_reader is not dsm_src:
+            dsm_src.close()
+        raise AtapInputError(f"Cannot open DTM as an allowed raster: {exc}") from exc
     if dtm_src.crs is None:
         dtm_src.close()
         raise AtapInputError(f"Cannot determine DTM CRS: {cfg.dtm_path}")

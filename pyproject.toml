@@ -20,7 +20,7 @@ dependencies = [
 [project.optional-dependencies]
 formats = ["geopandas>=0.14"]
 server = ["fastapi", "uvicorn", "python-multipart"]
-dev = ["pytest", "pytest-cov", "ruff", "playwright"]
+dev = ["pytest", "pytest-cov", "ruff", "playwright", "httpx"]
 
 [project.scripts]
 atap = "atap.cli:main"

@@ -15,7 +15,9 @@
     "pytest": "9.1.1",
     "pytest-cov": "7.1.0",
     "ruff": "0.16.7",
-    "playwright": "1.62.0"
+    "playwright": "1.62.0",
+    "httpx": "0.28.1",
+    "deck.gl": "9.3.11"
   },
   "note": "Captured versions are provenance of license-file sources, not dependency pins. GDAL license material is stored in a separate gdal/ directory to avoid case-insensitive filename collisions on macOS/Windows.",
   "files": [
@@ -31,6 +33,8 @@
     "pytest-cov/LICENSE",
     "ruff/LICENSE",
     "playwright/LICENSE",
+    "httpx/LICENSE.md",
+    "deck.gl/LICENSE",
     "numpy/LICENSE.txt",
     "pandas/LICENSE",
     "pyproj/LICENSE",

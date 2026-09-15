@@ -4,6 +4,15 @@ All notable public changes to ATAP should be documented here.
 
 ## Unreleased
 
+### Local server
+
+- added `atap serve` with the API v1 job queue, SSE progress, fixed artifacts,
+  streamed upload limits, cooperative cancellation and process-tree cleanup;
+- isolated engine execution in CLI subprocesses and kept the server process
+  free of engine-pipeline imports;
+- packaged the reference playground and pinned deck.gl bundle for offline use;
+- added HTTP, security, TTL, subprocess and browser integration tests.
+
 ### Packaged engine and CLI
 
 - added the installable `atap` Python package and public API;
@@ -12,7 +21,8 @@ All notable public changes to ATAP should be documented here.
 - moved verification tools to `tools/`, added tests and cross-platform CI;
 - translated engine messages and orientation metadata to English without
   changing scientific output;
-- recorded licenses for build, server-extra, and development dependencies.
+- recorded licenses for build, server-extra, and development dependencies,
+  including HTTPX and the packaged deck.gl bundle.
 
 ### Elevation prototype
 
