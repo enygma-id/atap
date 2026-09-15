@@ -576,8 +576,8 @@ const PARAMS = [
    type:'range', min:0, max:1, step:0.05, def:0.8},
 
   {group:'out', key:'id_field', label:'ID attribute',
-   hint:'Attribute holding a stable building ID. Leave empty to use GeoJSON Feature.id.',
-   type:'text', def:'', nullable:true, placeholder:'Feature.id', list:'id-field-options'},
+   hint:'Properties key holding a stable building ID. Automatically selects id when present; choose or enter another key if needed.',
+   type:'text', def:'', nullable:true, placeholder:'properties.id (automatic)', list:'id-field-options'},
   {group:'out', key:'keep_properties', label:'Copy attributes',
    hint:'Source attributes copied onto every part, comma-separated.',
    type:'list', def:'id, NAMOBJ, REMARK, floor_est'},
@@ -1045,7 +1045,7 @@ function renderHeader() {
   const v = d.vertical_reference || {}, p = d.processing || {}, proc = d.process || {},
         inputs = d.inputs || {}, ex = p.execution || {}, a = d.atap || {};
   const ids = inputs.footprint?.id_source;
-  const idText = !ids ? '—' : ids.mode === 'feature_id' ? 'Feature.id' : `attribute "${ids.field}"`;
+  const idText = !ids ? '—' : ids.mode === 'feature_id' ? 'Feature.id' : `properties.${ids.field}`;
   const res = r => {
     if (r?.resolution_x == null) return '—';
     if (/degree/i.test(r.resolution_unit || '')) return `${num(r.resolution_x * 3600, 2)}″ (${num(r.resolution_x * 111320, 1)} m approx.)`;
@@ -1393,21 +1393,18 @@ async function inspectFootprint(file) {
         if (c[1] < minY) minY = c[1]; if (c[1] > maxY) maxY = c[1];
       } else c.forEach(walk);
     };
-    const fids = [];
     const keys = new Set();
     for (const f of feats) {
       const g = f.geometry;
       if (!g) noGeom++;
       else if (g.type !== 'Polygon' && g.type !== 'MultiPolygon') nonPoly++;
       else if (geographic) walk(g.coordinates);
-      if (f.id !== undefined && f.id !== null && f.id !== '') fids.push(String(f.id));
       for (const k of Object.keys(f.properties || {})) keys.add(k);
     }
     const info = {
       status:'ok', count: feats.length, noGeom, nonPoly,
-      withFid: fids.length, dupFid: fids.length - new Set(fids).size,
       props: feats.map(f => f.properties || {}), keys: [...keys].sort(),
-      crsName, geographic, fieldCache: {}
+      crsName, geographic, fieldCache: Object.create(null)
     };
     if (geographic && Number.isFinite(minX)) {
       const lon = (minX + maxX) / 2, lat = (minY + maxY) / 2;
@@ -1416,6 +1413,8 @@ async function inspectFootprint(file) {
     }
     $('id-field-options').innerHTML = info.keys.map(k => `<option value="${esc(k)}">`).join('');
     state.footprintInfo = info;
+    const selected = keys.has('id') ? 'id' : (keys.has(state.params.id_field) ? state.params.id_field : '');
+    setParam('id_field', selected);
   } catch (err) {
     state.footprintInfo = {status:'error', message: err.message};
   }
@@ -1423,30 +1422,22 @@ async function inspectFootprint(file) {
 }
 
 function fieldStats(info, field) {
-  if (!info.fieldCache[field]) {
-    const vals = info.props.map(p => p[field]).filter(v => v !== undefined && v !== null && v !== '');
+  if (!Object.hasOwn(info.fieldCache, field)) {
+    const vals = info.props.map(p => p[field]).filter(v => v != null && typeof v !== 'boolean').map(v => String(v).trim()).filter(v => v !== '');
     info.fieldCache[field] = {present: vals.length, dup: vals.length - new Set(vals.map(String)).size};
   }
   return info.fieldCache[field];
 }
 
-/* Same priority as the engine: Feature.id on every feature, else the ID
-   attribute, else fail. */
+/* One properties key for the entire dataset; Feature-level IDs are ignored. */
 function idCheck() {
   const fi = state.footprintInfo;
-  if (!fi || fi.status !== 'ok') return {ok: true};
-  if (fi.withFid === fi.count) {
-    return fi.dupFid
-      ? {ok:false, msg:`Feature.id has ${fi.dupFid} duplicate value${fi.dupFid>1?'s':''}.`}
-      : {ok:true, msg:'Building IDs from Feature.id'};
-  }
-  const field = String(state.params.id_field ?? '').trim();
-  const missingFid = fi.count - fi.withFid;
-  if (!field) return {ok:false, msg:`Feature.id is missing on ${intFmt(missingFid)} of ${intFmt(fi.count)} features. Set an ID attribute below.`};
+  if (!fi || fi.status !== 'ok') return {ok:true};
+  const field = String(state.params.id_field ?? '') || 'id';
   const s = fieldStats(fi, field);
-  if (s.present < fi.count) return {ok:false, msg:`Attribute "${field}" is empty on ${intFmt(fi.count - s.present)} of ${intFmt(fi.count)} features.`};
-  if (s.dup) return {ok:false, msg:`Attribute "${field}" has ${intFmt(s.dup)} duplicate value${s.dup>1?'s':''}.`};
-  return {ok:true, msg:`Building IDs from attribute "${field}"`};
+  if (s.present < fi.count) return {ok:false, msg:`Properties key "${field}" is empty on ${intFmt(fi.count - s.present)} of ${intFmt(fi.count)} features. Choose or enter an ID properties key below.`};
+  if (s.dup) return {ok:false, msg:`Properties key "${field}" has ${intFmt(s.dup)} duplicate value${s.dup>1?'s':''}.`};
+  return {ok:true, msg:`Building IDs from properties.${field}`};
 }
 
 function checkLine(kind, text, action = '') {

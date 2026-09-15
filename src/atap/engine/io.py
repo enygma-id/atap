@@ -30,7 +30,7 @@ def is_metric_projected(crs: CRS) -> bool:
 
 
 # =============================================================================
-#                   INPUT: footprint + stable object ID  (spec §7, §13)
+#                   INPUT: footprint + stable object ID  (spec Â§7, Â§13)
 # =============================================================================
 def _normalize_id(v) -> str | None:
     if v is None:
@@ -90,7 +90,7 @@ def load_footprints(cfg: Config, work_crs: CRS, log) -> dict:
         raise AtapInputError(f"Footprint file was not found: {path!r}")
 
     ext = os.path.splitext(path)[1].lower()
-    raw: list[tuple[Any, Any, dict]] = []   # (feature_id, geometry, properties)
+    raw: list[tuple[Any, Any, dict]] = []   # (unused, geometry, properties)
 
     if ext in (".geojson", ".json"):
         with open(path, encoding="utf-8") as fh:
@@ -105,9 +105,9 @@ def load_footprints(cfg: Config, work_crs: CRS, log) -> dict:
         for f in feats:
             g = f.get("geometry")
             geom = shp_shape(g) if g else None
-            raw.append((f.get("id"), geom, dict(f.get("properties") or {})))
+            raw.append((None, geom, dict(f.get("properties") or {})))
     else:
-        import geopandas as gpd  # Optional formats such as GPKG/SHP require id_field.
+        import geopandas as gpd  # Optional formats use the same properties ID policy.
         gdf = gpd.read_file(path)
         if gdf.crs is None:
             raise AtapInputError(f"Cannot determine footprint CRS: {path}")
@@ -122,23 +122,15 @@ def load_footprints(cfg: Config, work_crs: CRS, log) -> dict:
         raise AtapInputError("Footprint dataset contains no features.")
 
     # Select one stable ID source for the entire dataset.
-    fids = [_normalize_id(fid) for fid, _, _ in raw]
-    if all(fid is not None for fid in fids):
-        id_source = {"mode": "feature_id", "field": None}
-        oids = fids
-    elif cfg.id_field:
-        oids = [_normalize_id(p.get(cfg.id_field)) for _, _, p in raw]
-        missing = sum(1 for o in oids if o is None)
-        if missing:
-            raise AtapInputError(
-                f"{missing}/{n} features have no '{cfg.id_field}' property value, "
-                "and not every feature has Feature.id. Stable IDs are required.")
-        id_source = {"mode": "property", "field": cfg.id_field}
-    else:
-        n_fid = sum(1 for f in fids if f is not None)
+    field = cfg.id_field or "id"
+    oids = [_normalize_id(p.get(field)) for _, _, p in raw]
+    missing = sum(o is None for o in oids)
+    if missing:
         raise AtapInputError(
-            f"Stable building IDs are unavailable: only {n_fid}/{n} features have "
-            "GeoJSON Feature.id and --id-field was not provided. Row indexes cannot be IDs.")
+            f"Stable building IDs are unavailable: {missing}/{n} features have no "
+            f"valid properties.{field} value. Choose a complete, unique properties "
+            "key with --id-field FIELD. Feature-level IDs and row indexes cannot be IDs.")
+    id_source = {"mode": "property", "field": field}
 
     seen: dict[str, int] = {}
     dups = set()

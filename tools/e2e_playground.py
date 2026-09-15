@@ -66,9 +66,18 @@ async def run(url, data, chromium, offline=False):
 
         # --- preflight + main run -------------------------------------------------
         A = await page_with_inputs(context, url, data, "footprints.geojson")
-        check(await A.is_disabled("#btn-run"), "run blocked when Feature.id missing and no ID attribute")
-        await A.fill("#p-id_field", "id"); await A.wait_for_timeout(200)
-        check(not await A.is_disabled("#btn-run"), "run enabled after ID attribute set")
+        check(await A.input_value("#p-id_field") == "id", "properties.id automatically selected")
+        check(not await A.is_disabled("#btn-run"), "run enabled with automatic properties.id")
+        await A.evaluate("""() => {
+          state.footprintInfo.props = state.footprintInfo.props.map(p => ({building_code:p.id}));
+          state.footprintInfo.fieldCache = {};
+          renderFootprintInfo(); refreshRunButton();
+        }""")
+        check(await A.is_disabled("#btn-run"), "run blocked without selected properties key")
+        await A.fill("#p-id_field", "building_code"); await A.wait_for_timeout(200)
+        check(not await A.is_disabled("#btn-run"), "manual alternative properties key accepted")
+        await A.close()
+        A = await page_with_inputs(context, url, data, "footprints.geojson")
         check("matches the data area" in await A.inner_text("#footprint-info"), "UTM zone check")
         await A.click("#btn-run")
         await A.wait_for_function(f"{CHIP}.includes('TERRAIN') || {CHIP}.includes('FAILED')", timeout=180000)

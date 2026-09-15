@@ -61,7 +61,7 @@ def test_stable_id_policy_and_duplicate_rejection(synthetic: Path, tmp_path: Pat
     with pytest.raises(AtapInputError, match="ID"):
         run_case(synthetic / "stepped", tmp_path / "no-id-output.geojson", footprint=str(missing))
     source = json.loads((synthetic / "stepped/footprints_fid.geojson").read_text(encoding="utf-8"))
-    source["features"][1]["id"] = source["features"][0]["id"]
+    source["features"][1]["properties"]["id"] = source["features"][0]["properties"]["id"]
     duplicate = tmp_path / "duplicate.geojson"
     duplicate.write_text(json.dumps(source), encoding="utf-8")
     with pytest.raises(AtapInputError, match="duplikat|Duplicate"):

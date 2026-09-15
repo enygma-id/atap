@@ -154,7 +154,7 @@ def run_elevation(
     fp = load_footprints(cfg, work_crs, _log)
     n_parcels = fp["feature_count"]
     _log(f"[info] Loaded {n_parcels} footprints; IDs from "
-         f"{'Feature.id' if fp['id_source']['mode'] == 'feature_id' else 'property ' + repr(fp['id_source']['field'])}")
+         f"{'properties.' + fp['id_source']['field']}")
 
     _prog(0, 0, "Opening the DSM master grid and aligning the DTM...")
     dsm_src, dsm_reader, dsm_warped = open_dsm_master_grid(cfg, work_crs)

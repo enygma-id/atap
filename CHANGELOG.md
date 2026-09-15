@@ -4,6 +4,13 @@ All notable public changes to ATAP should be documented here.
 
 ## Unreleased
 
+### Changed (scientific)
+
+- corrected input building ID selection to use an explicit properties key or
+  automatically `properties.id`; top-level input Feature identifiers are ignored;
+- aligned playground ID selection and provenance with this rule. Synthetic
+  geometry, hierarchy, heights, areas, volumes, and part identifiers are unchanged.
+
 ### Local server
 
 - added `atap serve` with the API v1 job queue, SSE progress, fixed artifacts,

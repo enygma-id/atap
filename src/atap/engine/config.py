@@ -41,7 +41,7 @@ class Config:
     dsm_path: str = "../data/dsm_warped.tif"      # Required master analysis grid.
     output_geojson: str = "../output/LOD1.geojson"
 
-    # Stable ID fallback after GeoJSON Feature.id.
+    # Stable properties key; None automatically selects properties.id.
     id_field: str | None = None
 
     # ---- CRS ----

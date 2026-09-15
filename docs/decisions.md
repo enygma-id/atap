@@ -47,16 +47,17 @@ The viewer has no DTM toggle; it offers *Ground elevation ON/OFF* instead
 
 **Status:** Accepted. **Spec:** §13.1.
 
-- The ID source is chosen for the whole dataset, not per feature:
-  1. every feature has a GeoJSON `Feature.id` → `id_source.mode = "feature_id"`;
-  2. else `id_field` is given and every feature has a non-empty value →
-     `mode = "property"`;
-  3. else fail with counts.
-- Duplicate IDs fail (they would produce duplicate `part_id`).
+- The ID source is one properties key for the whole dataset:
+  1. an explicit `id_field` selects that properties key;
+  2. otherwise automatically select `properties.id`;
+  3. fail with counts if the selected key is missing or empty on any feature.
+- Top-level input `Feature.id` is ignored. This corrects the earlier input
+  interpretation before release; output `Feature.id = part_id` remains valid.
+- Duplicate normalized IDs fail (they would produce duplicate `part_id`).
 - IDs are normalised to strings: integers and integral floats → `"123"`.
-- GeoJSON is parsed with `json`, not GDAL, because GDAL does not reliably
-  preserve string `Feature.id`. Other vector formats go through GeoPandas and
-  therefore require `id_field`.
+- `id_source` records `{"mode":"property","field":"<selected key>"}`.
+- GeoJSON is parsed with `json` to preserve source property values. Other
+  vector formats use GeoPandas and follow the same attribute selection rule.
 - Footprint CRS: legacy GeoJSON `crs` member if present, else EPSG:4326 per
   RFC 7946. Non-GeoJSON without CRS fails.
 

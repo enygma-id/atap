@@ -49,7 +49,7 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--cancel-file", type=Path)
     parser.add_argument("--raster-drivers", nargs="+")
     parser.add_argument("--quiet", action="store_true")
-    parser.add_argument("--id-field")
+    parser.add_argument("--id-field", help="Building ID properties key (default: id; overrides automatic selection)")
     parser.add_argument("--height-diff-threshold-m", type=float)
     parser.add_argument("--min-subregion-area-m2", type=float)
     parser.add_argument("--min-building-height-m", type=float)

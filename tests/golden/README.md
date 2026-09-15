@@ -60,3 +60,12 @@ three complete goldens and benchmark canonical hash were updated after all
 four pre-migration comparisons were EQUIVALENT when that one value was
 excluded. Geometry, hierarchy, measurements, schema, parameters, and defaults
 did not change.
+
+## Pre-release input ID correction
+
+Input building IDs now use an explicit properties key or automatic `properties.id`,
+ignoring top-level input Feature identifiers. The `id_source` metadata changed
+from `feature_id` to `property` with field `id` in stepped_k8_regularize,
+courtyard_default, and bench_default. All features, geometry, hierarchy, vertical
+values, summaries, and parameters remain identical. Restoring only the old bench
+`id_source` reproduces the previous canonical hash; its new hash is `434e4cb08571df7a085dc167f33574603c34b3456af75bbfd02497f678189ba2`.

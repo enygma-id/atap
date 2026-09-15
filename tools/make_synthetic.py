@@ -5,7 +5,8 @@ Synthetic reference datasets for ATAP elevation (no real/client data).
     python make_synthetic.py --out DIR [--dataset stepped|courtyard|bench|all]
 
 Each dataset directory gets: dsm.tif, dtm.tif, footprints.geojson
-(no Feature.id; property "id") and footprints_fid.geojson (with Feature.id).
+(properties.id) and footprints_fid.geojson (the same properties.id plus
+ignored top-level Feature identifiers).
 
 stepped   300x300 m, DSM 0.1 m EPSG:32750, DTM ~1 m EPSG:4326 (sloped).
           B1 3-tier tower (12/30/45 m), B2 podium + ring with 16x16 m

@@ -12,7 +12,7 @@ atap run --input-geojson footprints.geojson --dsm dsm.tif --dtm dtm.tif \
 ```
 
 DTM is mandatory, DSM is the analysis grid, and output uses EPSG:4326. Stable
-IDs come from every GeoJSON `Feature.id`, or from `--id-field FIELD`.
+Building IDs automatically come from `properties.id`. Use `--id-field FIELD` to select another properties key (this overrides `id`). Every feature must have a non-empty, unique value in the selected key. Top-level input `Feature.id` is ignored. The playground selects `id` when present and offers other property keys, including manual entry, in **ID attribute**.
 
 | Flag | Default |
 |---|---|
