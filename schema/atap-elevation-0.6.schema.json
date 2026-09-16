@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/enygma-id/atap/schema/atap-elevation-0.6.schema.json",
+  "title": "ATAP Elevation GeoJSON profile 0.6",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type","name","atap","process","inputs","processing","vertical_reference","summary","features"],
+  "properties": {
+    "type": {"const": "FeatureCollection"},
+    "name": {"type": "string", "minLength": 1},
+    "atap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine_version","profile_version","name","attribution","source_url","software_license"],
+      "properties": {
+        "engine_version": {"type": "string"},
+        "profile_version": {"const": "0.6"},
+        "name": {"type": "string"},
+        "attribution": {"type": "string"},
+        "source_url": {"type": "string", "format": "uri"},
+        "software_license": {"const": "AGPL-3.0-only"}
+      }
+    },
+    "process": {"type": "object"},
+    "inputs": {"type": "object"},
+    "processing": {"type": "object", "required": ["working_crs","output_crs","parameters","execution"]},
+    "vertical_reference": {"type": "object", "required": ["mode","dtm_used","height_surface","ground_source"]},
+    "summary": {"type": "object", "required": ["building_count","part_count","skipped_building_count","validation"]},
+    "features": {"type": "array", "items": {"$ref": "#/$defs/feature"}}
+  },
+  "$defs": {
+    "feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type","id","properties","geometry"],
+      "properties": {
+        "type": {"const": "Feature"},
+        "id": {"type": "string", "minLength": 1},
+        "geometry": {"type": "object", "required": ["type","coordinates"]},
+        "properties": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["object_id","part_id","parent_part_id","part_level","ground_elevation_m","base_height_agl_m","top_height_agl_m","part_height_m","base_elevation_m","top_elevation_m","area_m2","volume_m3"],
+          "properties": {
+            "object_id": {"type": "string"},
+            "part_id": {"type": "string"},
+            "parent_part_id": {"type": ["string","null"]},
+            "part_level": {"type": "integer", "minimum": 0},
+            "ground_elevation_m": {"type": "number"},
+            "base_height_agl_m": {"type": "number"},
+            "top_height_agl_m": {"type": "number"},
+            "part_height_m": {"type": "number", "minimum": 0},
+            "base_elevation_m": {"type": "number"},
+            "top_elevation_m": {"type": "number"},
+            "area_m2": {"type": "number", "exclusiveMinimum": 0},
+            "volume_m3": {"type": "number", "minimum": 0}
+          }
+        }
+      }
+    }
+  }
+}

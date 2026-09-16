@@ -1,0 +1,1961 @@
+<!doctype html>
+<!--
+  SPDX-License-Identifier: AGPL-3.0-only
+  ATAP Playground — reference viewer and job runner for the ATAP elevation engine.
+  Part of ATAP Community Edition, founded and stewarded by Enygma.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ATAP Playground</title>
+<link rel="icon" href="data:,">
+<!-- deck.gl is pinned. Served locally from vendor/ by `atap serve`; the CDN
+     copy of the SAME version is only a fallback when the file is opened
+     outside the server. -->
+<script src="vendor/deck.gl-9.3.11.min.js"></script>
+<script>
+  if (!window.deck) document.write('<script src="https://unpkg.com/deck.gl@9.3.11/dist.min.js"><\/script>');
+</script>
+<style>
+  :root{
+    --panel-w:390px;
+    --text:#17202a;
+    --text-2:#4b5563;
+    --text-3:#64717d;
+    --line:#e5e7eb;
+    --line-2:#dfe5ea;
+    --fill:#f5f7f9;
+    --fill-2:#eef2f7;
+    --accent:#2f6fa8;
+    --ok:#2c6b3c;
+    --ok-bg:#e9f5ec;
+    --warn:#8a5a00;
+    --warn-bg:#fff3dd;
+    --bad:#a52f3d;
+    --bad-bg:#fdeaec;
+    --lvl0:#377eb8;
+    --lvl1:#4daf4a;
+    --lvl2:#ff7f00;
+    --lvl3:#984ea3;
+    --lvl4:#e41a1c;
+    --lvl5:#a65628;
+    --radius:12px;
+  }
+  html,body,#map{width:100%;height:100%;margin:0}
+  body{overflow:hidden;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#111;color:var(--text)}
+  #map{position:absolute;inset:0}
+  *{box-sizing:border-box}
+  .panel small{font-size:10px}
+  .ico{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .ico.lg{width:18px;height:18px}
+  .ico.sm{width:12px;height:12px}
+
+  /* ---------------------------------------------------------- panel shell */
+  .panel{
+    position:absolute;z-index:10;top:16px;left:16px;width:var(--panel-w);
+    max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+    background:rgba(255,255,255,.97);border-radius:var(--radius);
+    box-shadow:0 12px 35px rgba(0,0,0,.18);backdrop-filter:blur(10px);
+  }
+  .panel-head{padding:14px 14px 0}
+  .panel-body{overflow:auto;padding:0 14px;flex:1}
+  .panel-foot{padding:10px 14px 10px;border-top:1px solid var(--line)}
+  .brand{display:flex;align-items:baseline;gap:8px;margin-bottom:3px}
+  .brand h1{margin:0;font-size:21px;letter-spacing:-.01em}
+  .brand span{font-size:11px;color:var(--text-3)}
+  .brand .spacer{flex:1}
+  .icon-btn{border:1px solid var(--line);background:#fff;border-radius:7px;width:26px;height:26px;display:grid;place-items:center;cursor:pointer;color:var(--text-3)}
+  .icon-btn:hover{color:var(--text);border-color:#cdd4dc}
+
+  .chip{display:inline-flex;align-items:center;gap:5px;margin:6px 0 10px;padding:4px 9px;border-radius:999px;font-size:10px;font-weight:800;background:var(--fill-2);color:var(--text-3)}
+  .chip.ok{background:var(--ok-bg);color:var(--ok)}
+  .chip.warn{background:var(--warn-bg);color:var(--warn)}
+  .chip.bad{background:var(--bad-bg);color:var(--bad)}
+
+  .tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--fill-2);border-radius:9px;margin-bottom:10px}
+  .tabs button{border:0;padding:8px 9px;border-radius:7px;background:transparent;cursor:pointer;font-weight:600;font-size:12px;color:var(--text-2);display:flex;align-items:center;justify-content:center;gap:6px}
+  .tabs button.active{background:#fff;color:var(--text);box-shadow:0 1px 5px rgba(0,0,0,.1)}
+  .tab-page{display:none;padding-bottom:12px}
+  .tab-page.active{display:block}
+
+  .section-label{display:flex;align-items:center;gap:6px;margin:14px 0 7px;font-size:11px;font-weight:700;color:var(--text-3)}
+  .section-label:first-child{margin-top:4px}
+  .section-label .rule{flex:1;height:1px;background:var(--line)}
+  .section-label small{font-weight:500}
+  .link-btn{border:0;background:transparent;padding:0;font:inherit;font-size:10.5px;font-weight:600;color:var(--accent);cursor:pointer}
+  .link-btn:hover{text-decoration:underline}
+
+  details.group{margin-top:14px}
+  details.group>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text-3);margin-bottom:7px}
+  details.group>summary::-webkit-details-marker{display:none}
+  details.group>summary::before{content:"▸";font-size:10px;transition:transform .15s}
+  details.group[open]>summary::before{transform:rotate(90deg)}
+  details.group>summary .rule{flex:1;height:1px;background:var(--line)}
+  details.group>summary small{font-weight:500}
+
+  /* ------------------------------------------------------------- dropzone */
+  .drop{
+    display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    padding:10px;margin-bottom:7px;border:1.5px dashed #cfd6de;border-radius:9px;
+    background:#fbfcfd;cursor:pointer;font:inherit;color:var(--text);
+  }
+  .drop:hover{border-color:var(--accent);background:#f6f9fc}
+  .drop.over{border-color:var(--accent);background:#eef5fb}
+  .drop.filled{border-style:solid;border-color:#cfe0cf;background:#f6fbf7}
+  .drop.required-missing{border-color:#e7b7bd;background:#fdf7f8}
+  .drop.too-large{border-style:solid;border-color:#e7b7bd;background:#fdf7f8}
+  .drop-ico{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;background:var(--fill-2);color:var(--text-3);flex:none}
+  .drop.filled .drop-ico{background:#e2f0e4;color:var(--ok)}
+  .drop.too-large .drop-ico{background:var(--bad-bg);color:var(--bad)}
+  .drop-text{min-width:0;flex:1}
+  .drop-text b{display:block;font-size:12px;font-weight:650}
+  .drop-text small{display:block;font-size:10.5px;line-height:1.45;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .drop-clear{border:0;background:transparent;cursor:pointer;color:var(--text-3);padding:3px;display:grid;place-items:center}
+  .drop-clear:hover{color:var(--bad)}
+
+  /* ------------------------------------------------------------- controls */
+  .control{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:12px}
+  .control:first-of-type{border-top:0}
+  .control .lbl strong{font-weight:650}
+  .control .lbl small{display:block;color:var(--text-3);font-size:10.5px;line-height:1.35;margin-top:1px}
+  .control.stack{flex-direction:column;align-items:stretch;gap:6px}
+  .control.stack input[type=text]{width:100%;text-align:left}
+  .control.disabled .lbl,.control.disabled .range-wrap{opacity:.45}
+  .range-wrap{width:150px;display:flex;align-items:center;gap:8px;flex:none}
+  input[type=range]{width:86px;accent-color:var(--accent)}
+  .range-wrap b{font-size:11.5px;min-width:48px;text-align:right;font-variant-numeric:tabular-nums}
+  select,input[type=text],input[type=number]{
+    font:inherit;font-size:12px;padding:5px 7px;border:1px solid #d5dbe2;border-radius:6px;background:#fff;color:var(--text);
+  }
+  select{min-width:118px;max-width:160px}
+  .param-buttons{display:flex;flex:none;gap:0}
+  .param-buttons.chips{flex-wrap:wrap;gap:5px}
+  .param-option{font:inherit;font-size:11px;padding:6px 8px;border:1px solid #d5dbe2;background:#fff;color:var(--text-2);cursor:pointer;border-radius:6px;overflow-wrap:anywhere}
+  .param-buttons.segmented .param-option{border-radius:0;margin-left:-1px}
+  .param-buttons.segmented .param-option:first-child{border-radius:6px 0 0 6px;margin-left:0}
+  .param-buttons.segmented .param-option:last-child{border-radius:0 6px 6px 0}
+  .param-option[aria-pressed=true]{background:#eaf3fb;border-color:var(--accent);color:var(--accent);position:relative}
+  .param-buttons.chips .param-option{font-size:10px;line-height:1.15;padding:3px 5px}
+  .param-option:hover{background:var(--fill)}
+  .param-option:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  input[type=text],input[type=number]{width:118px;text-align:right;font-variant-numeric:tabular-nums}
+  input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;flex:none}
+  .swatch{width:10px;height:10px;border-radius:2px;flex:none}
+
+  /* --------------------------------------------------------------- button */
+  .btn{
+    display:flex;align-items:center;justify-content:center;gap:7px;width:100%;
+    padding:11px;border:0;border-radius:9px;font:inherit;font-size:13px;font-weight:650;
+    cursor:pointer;background:var(--accent);color:#fff;
+  }
+  .btn:hover{background:#255d90}
+  .btn:disabled{background:#c3ccd6;cursor:not-allowed}
+  .btn.ghost{background:#fff;color:var(--text-2);border:1px solid var(--line)}
+  .btn.ghost:hover{background:var(--fill);color:var(--text)}
+  .btn.danger{background:#fff;color:var(--bad);border:1px solid #eccfd3}
+  .btn.danger:hover{background:var(--bad-bg)}
+  .btn-row{display:grid;grid-template-columns:1fr auto;gap:7px}
+  .btn.icon-only{width:auto;padding:11px 13px}
+  .mini-btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:3px 8px;font:inherit;font-size:10.5px;font-weight:650;color:var(--accent);cursor:pointer}
+  .mini-btn:hover{border-color:var(--accent)}
+
+  /* -------------------------------------------------------------- progress */
+  .progress{margin-top:9px}
+  .progress-bar{height:5px;border-radius:3px;background:var(--fill-2);overflow:hidden}
+  .progress-bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s ease}
+  .progress-bar.indeterminate i{width:35%;animation:slide 1.1s ease-in-out infinite}
+  @keyframes slide{0%{margin-left:-35%}100%{margin-left:100%}}
+  .progress-meta{display:flex;justify-content:space-between;gap:10px;margin-top:5px;font-size:10.5px;color:var(--text-3)}
+  .progress-meta b{font-variant-numeric:tabular-nums;color:var(--text-2)}
+  @media (prefers-reduced-motion:reduce){.progress-bar.indeterminate i{animation:none;width:100%}}
+
+  /* ------------------------------------------------------------ info cards */
+  .card{padding:9px;background:var(--fill);border-radius:8px;font-size:11px;line-height:1.45;margin-bottom:10px}
+  .row{display:flex;justify-content:space-between;gap:12px;padding:1px 0}
+  .row span{color:var(--text-3);flex:none}
+  .row strong{text-align:right;font-weight:650;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .divider{height:1px;background:var(--line-2);margin:7px 0}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
+  .stat{padding:9px;border:1px solid var(--line);border-radius:8px}
+  .stat b{display:block;font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+  .stat small{display:block;font-size:10px;color:var(--text-3);margin-top:2px}
+  .stat.alert{border-color:#eccfd3;background:#fdf8f9}
+  .stat.alert b{color:var(--bad)}
+
+  .check{display:flex;gap:7px;align-items:flex-start;padding:2px 0}
+  .check .ico{margin-top:2px}
+  .check.ok{color:var(--ok)}
+  .check.warn{color:var(--warn)}
+  .check.bad{color:var(--bad)}
+  .check span{color:var(--text-2)}
+
+  .log{margin-top:9px;max-height:132px;overflow:auto;padding:8px;background:#10161d;border-radius:8px;color:#c6d2df;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10px;line-height:1.5}
+  .log div{white-space:pre-wrap;word-break:break-word}
+  .log .err{color:#ff9aa6}
+
+  .history-item{display:flex;align-items:center;gap:9px;width:100%;padding:8px;margin-bottom:5px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;font:inherit;text-align:left;color:var(--text);text-decoration:none}
+  .history-item:hover{border-color:#cdd4dc;background:var(--fill)}
+  .history-item.active{border-color:var(--accent);background:#f2f7fb}
+  .history-item .hi-text{flex:1;min-width:0}
+  .history-item b{display:block;font-size:11.5px;font-weight:650}
+  .history-item small{display:block;font-size:10px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .skip-list{max-height:170px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+  .skip-item{display:flex;justify-content:space-between;gap:10px;padding:6px 8px;border-top:1px solid var(--line);font-size:11px}
+  .skip-item:first-child{border-top:0}
+  .skip-item b{font-weight:650;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .skip-item span{color:var(--text-3);text-align:right}
+
+  .hint{margin-top:9px;font-size:11px;line-height:1.45;color:#697386}
+  .hint b{font-weight:650;color:var(--text-2)}
+  .notice{display:flex;gap:8px;padding:9px;border-radius:8px;font-size:11px;line-height:1.45;margin-bottom:10px}
+  .notice.info{background:#eef5fb;color:#2b5a86}
+  .notice.warn{background:var(--warn-bg);color:var(--warn)}
+  .notice.bad{background:var(--bad-bg);color:var(--bad)}
+  .notice .ico{margin-top:1px}
+  #status{font-size:11px;color:#5b6572;line-height:1.5}
+  #status b{color:var(--text);font-variant-numeric:tabular-nums}
+  .source-line{margin-top:7px;font-size:10px;color:var(--text-3)}
+  .source-line a{color:var(--text-3)}
+
+  .empty{padding:24px 12px;text-align:center;color:var(--text-3)}
+  .empty .ico{width:26px;height:26px;margin-bottom:8px;stroke-width:1.4}
+  .empty p{margin:0;font-size:11.5px;line-height:1.5}
+
+  /* -------------------------------------------------------------- tooltip */
+  #tooltip{display:none;position:absolute;z-index:30;width:390px;max-height:calc(100vh - 28px);overflow:auto;pointer-events:none;background:rgba(17,24,39,.97);color:#f9fafb;border-radius:10px;padding:13px;box-shadow:0 12px 35px rgba(0,0,0,.28);font-size:11px}
+  .tooltip-title{font-size:15px;font-weight:750;margin-bottom:2px}
+  .tooltip-sub{color:#aeb8c5;margin-bottom:9px}
+  .tooltip-section{margin-top:10px;margin-bottom:5px;padding-top:8px;border-top:1px solid rgba(255,255,255,.12);color:#b9c7d8;letter-spacing:.04em;font-size:10px;font-weight:700;text-transform:uppercase}
+  .tooltip-row{display:flex;justify-content:space-between;gap:18px;padding:2px 0}
+  .tooltip-row span{color:#b8c2cf;flex:none}
+  .tooltip-row strong{text-align:right;font-weight:650;font-variant-numeric:tabular-nums}
+  .tooltip-note{display:flex;gap:7px;margin-top:9px;padding:8px;background:rgba(255,255,255,.07);border-radius:6px;color:#d4dbe4;line-height:1.45}
+  .tooltip-note.warn{background:rgba(255,190,80,.14);color:#ffe2b0}
+  .family-part{display:grid;grid-template-columns:52px 26px 84px 1fr;gap:7px;padding:4px 0;align-items:center;border-bottom:1px solid rgba(255,255,255,.07);font-variant-numeric:tabular-nums}
+  .family-part span{color:#bec8d4;text-align:right}
+  .family-part .dot{width:7px;height:7px;border-radius:50%}
+
+  /* --------------------------------------------------------------- legend */
+  .legend{position:absolute;z-index:10;left:calc(var(--panel-w) + 32px);bottom:16px;padding:10px 11px;background:rgba(255,255,255,.95);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.16);font-size:10.5px;display:none}
+  .legend.show{display:block}
+  .legend b{display:block;font-size:10px;color:var(--text-3);margin-bottom:6px;font-weight:700}
+  .legend-item{display:flex;align-items:center;gap:7px;padding:2px 0;color:var(--text-2)}
+  .attribution{position:absolute;z-index:10;right:8px;bottom:6px;font-size:10px;background:rgba(255,255,255,.8);padding:3px 5px;border-radius:4px;color:#555}
+  .attribution.bad{color:var(--bad)}
+  .map-tools{position:absolute;z-index:10;right:8px;top:16px;display:flex;flex-direction:column;gap:6px}
+  .map-tools button{width:32px;height:32px;border:0;border-radius:8px;background:rgba(255,255,255,.95);box-shadow:0 6px 18px rgba(0,0,0,.15);cursor:pointer;color:var(--text-2);display:grid;place-items:center}
+  .map-tools button:hover{color:var(--text)}
+  .tree{border:1px solid var(--line);border-radius:8px;padding:5px;background:#fff}
+  .tree-node{margin-left:14px}
+  .tree>.tree-node{margin-left:0}
+  .tree-node>summary{cursor:pointer;list-style:none;border-radius:6px;padding:6px;display:grid;grid-template-columns:minmax(72px,1fr) auto;gap:3px 8px;font-size:10.5px}
+  .tree-node>summary::-webkit-details-marker{display:none}
+  .tree-node>summary:hover,.tree-node>summary:focus-visible{background:var(--fill-2)}
+  .tree-node>summary::before{content:"▸";grid-row:1/3;align-self:center;color:var(--text-3)}
+  .tree-node[open]>summary::before{content:"▾"}
+  .tree-part{font-weight:700;overflow:hidden;text-overflow:ellipsis}
+  .tree-metrics{grid-column:2;color:var(--text-2);font-variant-numeric:tabular-nums}
+  .tree-level{grid-column:1;color:var(--text-3);padding-left:13px}
+  .tree-children{border-left:1px solid var(--line);margin-left:9px}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- ============================ icon sprite ============================ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8-13-8Z"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6 18 18M18 6 6 18"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></symbol>
+    <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z"/><path d="m3 7 9 5 9-5"/><path d="M12 12v10"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M4 19h16"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></symbol>
+  </defs>
+</svg>
+
+<!-- ================================ panel ================================ -->
+<section class="panel">
+  <div class="panel-head">
+    <div class="brand">
+      <h1>ATAP</h1><span>playground</span>
+      <div class="spacer"></div>
+      <button id="btn-settings" class="icon-btn" title="Backend settings" aria-label="Backend settings">
+        <svg class="ico"><use href="#i-server"/></svg>
+      </button>
+    </div>
+    <div id="chip" class="chip">NO RESULT LOADED</div>
+
+    <div class="tabs">
+      <button id="tab-btn-run" class="active" aria-pressed="true"><svg class="ico"><use href="#i-sliders"/></svg>Run</button>
+      <button id="tab-btn-view" aria-pressed="false"><svg class="ico"><use href="#i-cube"/></svg>Result</button>
+    </div>
+  </div>
+
+  <div class="panel-body">
+
+    <!-- ------------------------------- RUN ------------------------------- -->
+    <div id="tab-run" class="tab-page active">
+
+      <div id="settings-box" style="display:none">
+        <div class="section-label">Backend<div class="rule"></div></div>
+        <div class="control">
+          <span class="lbl"><strong>API base URL</strong><small>Where <code>atap serve</code> is running</small></span>
+          <input id="api-base" type="text" style="width:150px;text-align:left">
+        </div>
+        <div id="api-state" class="hint">Not checked yet.</div>
+      </div>
+
+      <div class="section-label">Input<div class="rule"></div><small>all required</small></div>
+
+      <button class="drop required-missing" id="drop-footprint" type="button"></button>
+      <button class="drop required-missing" id="drop-dsm" type="button"></button>
+      <button class="drop required-missing" id="drop-dtm" type="button"></button>
+
+      <input id="file-footprint" type="file" accept=".geojson,.json" hidden>
+      <input id="file-dsm" type="file" accept=".tif,.tiff" hidden>
+      <input id="file-dtm" type="file" accept=".tif,.tiff" hidden>
+
+      <div class="hint">Input is uploaded once per selection and reused when only parameters change. Changing a file uploads a new input set.</div>
+      <div id="footprint-info"></div>
+
+      <div class="hint">
+        The <b>DSM</b> is the analysis grid. The <b>DTM</b> is resampled (bilinear) onto it,
+        and heights come from <b>nDSM = DSM − DTM</b>. Runs without a DTM are not supported.
+      </div>
+
+      <div class="section-label">Decomposition<div class="rule"></div>
+        <button class="link-btn" id="btn-reset-params" type="button">Reset to defaults</button></div>
+      <div id="params-core"></div>
+
+      <div class="section-label">Terrain &amp; ground<div class="rule"></div></div>
+      <div id="params-terrain"></div>
+
+      <div class="section-label">Geometry<div class="rule"></div></div>
+      <div id="params-geom"></div>
+
+      <div class="section-label">Identity &amp; output<div class="rule"></div></div>
+      <div id="params-out"></div>
+
+      <details class="group">
+        <summary>Execution<small>· does not change results</small><span class="rule"></span></summary>
+        <div id="params-exec"></div>
+      </details>
+
+      <div class="section-label">Runs<div class="rule"></div></div>
+      <div id="history"><p class="hint" style="margin:0">No runs yet in this session.</p></div>
+    </div>
+
+    <!-- ------------------------------ RESULT ----------------------------- -->
+    <div id="tab-view" class="tab-page">
+      <div id="view-empty" class="empty">
+        <svg class="ico"><use href="#i-cube"/></svg>
+        <p>Run the pipeline, or open an ATAP result file<br>to inspect it here.</p>
+      </div>
+
+      <div id="view-content" style="display:none">
+        <div class="stat-grid" id="stats"></div>
+        <div id="result-notice"></div>
+
+        <div class="section-label">Display<div class="rule"></div></div>
+
+        <div class="tabs" style="margin-bottom:9px">
+          <button id="mode-part" class="active" aria-pressed="true">Part hover</button>
+          <button id="mode-building" aria-pressed="false">Building group</button>
+        </div>
+
+        <label class="control">
+          <span class="lbl"><strong>Colour by hierarchy level</strong><small>Tell nested parts apart</small></span>
+          <input id="decomposition-toggle" type="checkbox" checked>
+        </label>
+        <label class="control">
+          <span class="lbl"><strong>Ground elevation</strong><small id="ground-hint">Off · local plane: parts start at 0 m on the flat basemap</small></span>
+          <input id="ground-toggle" type="checkbox">
+        </label>
+        <label class="control">
+          <span class="lbl"><strong>Explode hierarchy</strong><small>Viewer-only vertical gap per level</small></span>
+          <input id="explode-toggle" type="checkbox">
+        </label>
+        <div class="control">
+          <span class="lbl"><strong>Explode gap</strong><small>Per hierarchy level</small></span>
+          <div class="range-wrap">
+            <input id="explode-gap" type="range" min="0" max="10" step="0.5" value="2.5">
+            <b id="explode-value">2.5 m</b>
+          </div>
+        </div>
+
+        <div id="hierarchy-section"></div>
+
+        <div id="skipped-section"></div>
+
+        <div class="section-label">Dataset header<div class="rule"></div></div>
+        <div id="header-info" class="card">No header metadata.</div>
+
+        <div class="section-label">Artifacts<div class="rule"></div></div>
+        <div id="artifacts"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- -------------------------------- footer ------------------------------ -->
+  <div class="panel-foot">
+    <div class="btn-row">
+      <button id="btn-run" class="btn" disabled>
+        <svg class="ico"><use href="#i-play"/></svg><span id="btn-run-label">Run pipeline</span>
+      </button>
+      <button id="btn-open" class="btn ghost icon-only" title="Open an existing result file" aria-label="Open an existing result file">
+        <svg class="ico"><use href="#i-folder"/></svg>
+      </button>
+    </div>
+    <input id="file-result" type="file" accept=".geojson,.json" hidden>
+
+    <div id="progress" class="progress" style="display:none">
+      <div class="progress-bar" id="progress-bar"><i id="progress-fill"></i></div>
+      <div class="progress-meta">
+        <span id="progress-msg">Starting…</span><b id="progress-count"></b>
+      </div>
+      <div class="log" id="log" style="display:none"></div>
+    </div>
+
+    <div id="status" style="margin-top:8px">Load a footprint, DSM and DTM to begin.</div>
+    <div class="source-line" id="source-line"></div>
+  </div>
+</section>
+
+<div id="tooltip"></div>
+
+<div class="map-tools">
+  <button id="btn-fit" title="Zoom to data" aria-label="Zoom to data"><svg class="ico lg"><use href="#i-target"/></svg></button>
+  <button id="btn-reset-view" title="Reset camera" aria-label="Reset camera"><svg class="ico lg"><use href="#i-reset"/></svg></button>
+</div>
+
+<div class="legend" id="legend">
+  <b>Hierarchy level</b>
+  <div class="legend-item"><span class="swatch" style="background:var(--lvl0)"></span>Level 0 · authoritative footprint</div>
+  <div class="legend-item"><span class="swatch" style="background:var(--lvl1)"></span>Level 1</div>
+  <div class="legend-item"><span class="swatch" style="background:var(--lvl2)"></span>Level 2</div>
+  <div class="legend-item"><span class="swatch" style="background:var(--lvl3)"></span>Level 3</div>
+  <div class="legend-item"><span class="swatch" style="background:var(--lvl4)"></span>Level 4</div>
+  <div class="legend-item"><span class="swatch" style="background:var(--lvl5)"></span>Level 5+</div>
+</div>
+
+<div class="attribution" id="attribution">Basemap © Badan Informasi Geospasial (BIG)</div>
+
+<script>
+/* =========================================================================
+   ATAP Playground
+   -------------------------------------------------------------------------
+   Single file on purpose: no build step, so it ships inside the Python
+   package and runs offline once deck.gl is vendored next to it.
+
+   Output contract: ATAP engine >= 0.2 / profile 0.6 (ATAP Elevation
+   specification; § numbers refer to it). DTM is mandatory; the engine
+   fails fast, so there is no quarantine/fallback-ground mode.
+
+   Backend contract expected from `atap serve` (same origin by default):
+     GET  /api/health
+          -> {version, source_url, running_jobs, queued_jobs,
+              max_concurrent, max_upload_mb}
+     POST /api/jobs            multipart: footprint, dsm, dtm OR source_job_id; params(JSON)
+          -> {job_id, footprint_count, queue_position}
+     GET  /api/jobs/{id}       -> {status: queued|running|completed|
+                                   failed|cancelled, result?, error?,
+                                   queue_position?}
+     GET  /api/jobs/{id}/events   Server-Sent Events, JSON payload `type`:
+          queued{position} | started | progress{current,total,message} |
+          log{message} | cancelling | completed{result} | cancelled |
+          failed{error} | close
+          result = {num_features, num_buildings, num_skipped}
+     POST /api/jobs/{id}/cancel
+     GET  /api/jobs/{id}/artifacts/output   ATAP GeoJSON (EPSG:4326)
+     GET  /api/jobs/{id}/artifacts/log      run log (text)
+   ========================================================================= */
+/* POST /api/jobs accepts either three files or source_job_id plus params.
+   Output downloads use atap_<UTC timestamp>_<8-character job ID>.geojson. */
+'use strict';
+
+if (!window.deck) {
+  document.getElementById('map').innerHTML =
+    '<p style="color:#fff;padding:24px 24px 24px 430px;font:14px system-ui">' +
+    'deck.gl could not be loaded: the vendored copy is missing and the CDN is unreachable.</p>';
+  throw new Error('deck.gl is not available');
+}
+
+const {Deck, GeoJsonLayer, TileLayer, BitmapLayer,
+       AmbientLight, DirectionalLight, LightingEffect} = deck;
+
+const $ = id => document.getElementById(id);
+
+const REPO_URL = 'https://github.com/enygma-id/atap';
+const EXPECTED_PROFILE = '0.6';
+const FOOTPRINT_INSPECT_LIMIT = 60 * 1024 * 1024;   // parse in browser up to 60 MB
+const LOW_COVERAGE = 0.5;                            // viewer hint only
+
+/* ------------------------------------------------------------------ state */
+const state = {
+  apiBase: location.protocol.startsWith('http') ? location.origin : 'http://localhost:8000',
+  service: null,          // /api/health payload
+  files: {footprint: null, dsm: null, dtm: null},
+  reusableInputs: null,  // accepted job and exact File objects for this browser session
+  footprintInfo: null,    // client-side preflight of the footprint file
+  params: {},
+  job: null,
+  upload: null,           // AbortController while files are being uploaded
+  events: null,
+  data: null,             // active FeatureCollection
+  byObject: new Map(),    // object_id -> [features]
+  renderCache: null,      // {key, data}
+  history: [],
+  activeRun: null,
+  hoverMode: 'part',
+  decomposition: true,
+  groundElevation: false, // spec §29: false = LOCAL_PLANE, true = WORLD_ELEVATION
+  explode: false,
+  explodeGap: 2.5,
+  hoveredPartId: null,
+  hoveredObjectId: null,
+  pinnedObjectId: null,
+  treeHoveredPartId: null,
+  bounds: null,
+  basemapErrors: 0,
+  statusSticky: false     // true while a result summary or an error is shown
+};
+
+const DEFAULT_VIEW = {longitude: 117.0, latitude: -2.0, zoom: 4.2, pitch: 0, bearing: 0};
+
+/* ------------------------------------------------- parameter declarations */
+/* Defaults mirror Config in the engine. `nullable` params are omitted when
+   empty (engine default applies). `dependsOn` greys a control out when the
+   parent option is off. Group `exec` affects speed only, never results. */
+const PARAMS = [
+  {group:'core', key:'height_diff_threshold_m', label:'Height step threshold',
+   hint:'Roof heights closer than this count as the same level.',
+   type:'range', min:0.5, max:15, step:0.1, def:3.0, unit:'m'},
+  {group:'core', key:'min_footprint_change_ratio', label:'Footprint shrink ratio',
+   hint:'An upper level becomes its own part only if its footprint is at least this much smaller than the level below. Keeps uniform towers in one piece.',
+   type:'range', min:0, max:0.9, step:0.05, def:0.25, fmt:'pct'},
+  {group:'core', key:'max_height_classes', label:'Max height groups',
+   hint:'Most height groups searched for in one building. Raise it when a large podium hides the towers above.',
+   type:'range', min:1, max:8, step:1, def:4},
+  {group:'core', key:'min_building_height_m', label:'Min roof height',
+   hint:'Pixels lower than this above the ground are not treated as roof (ground, cars, low walls).',
+   type:'range', min:0, max:10, step:0.5, def:2.0, unit:'m'},
+  {group:'core', key:'min_subregion_area_m2', label:'Min upper-part area',
+   hint:'Upper parts smaller than this are ignored.',
+   type:'range', min:0, max:100, step:1, def:12, unit:'m²'},
+  {group:'core', key:'parent_min_containment_ratio', label:'Parent overlap',
+   hint:'How much of an upper part must sit on one part below to be its child. Otherwise it attaches further down.',
+   type:'range', min:0.1, max:1, step:0.05, def:0.5, fmt:'pct'},
+
+  {group:'terrain', key:'base_elevation_stat', label:'Ground height from DTM',
+   hint:'How one ground height is taken from the DTM pixels under the building.',
+   type:'segmented', options:['min','mean','median'], def:'min'},
+  {group:'terrain', key:'ground_source_type', label:'Terrain raster type',
+   hint:'What the terrain raster really is. Recorded in the metadata only.',
+   type:'segmented', options:['DTM','DEM'], def:'DTM'},
+  {group:'terrain', key:'vertical_datum', label:'Vertical datum',
+   hint:'Height reference of the rasters, e.g. EGM2008. Metadata only; leave empty if unknown.',
+   type:'text', def:'', nullable:true, placeholder:'unknown'},
+
+  {group:'geom', key:'morph_closing_iters', label:'Gap sealing',
+   hint:'Closes pinholes and thin gaps in each level. Counted in pixels, so its size in metres depends on the DSM resolution.',
+   type:'range', min:0, max:10, step:1, def:3, unit:'px'},
+  {group:'geom', key:'max_fill_hole_area_m2', label:'Fill holes up to',
+   hint:'Holes up to this size are filled as noise. Larger holes stay as courtyards.',
+   type:'range', min:0, max:100, step:0.5, def:4, unit:'m²'},
+  {group:'geom', key:'simplify_tolerance_m', label:'Outline smoothing',
+   hint:'How much part outlines are simplified. Large values can shrink narrow holes.',
+   type:'range', min:0, max:5, step:0.1, def:0.9, unit:'m'},
+  {group:'geom', key:'regularize', label:'Regularize outlines',
+   hint:'Square up part outlines: rectangle, circle, or right angles.',
+   type:'bool', def:false},
+  {group:'geom', key:'rectangular_ratio', label:'Rectangle fill ratio', dependsOn:'regularize',
+   hint:'Parts filling at least this share of their bounding rectangle become that rectangle.',
+   type:'range', min:0, max:1, step:0.05, def:0.4, fmt:'pct'},
+  {group:'geom', key:'circularity_threshold', label:'Roundness threshold', dependsOn:'regularize',
+   hint:'Parts rounder than this become circles.',
+   type:'range', min:0, max:1, step:0.05, def:0.8},
+
+  {group:'out', key:'id_field', label:'ID attribute',
+   hint:'Properties key holding a stable building ID. Automatically selects id when present; select another key if needed.',
+   type:'select', options:[], def:'', nullable:true},
+  {group:'out', key:'keep_properties', label:'Copy attributes',
+   hint:'All footprint properties start active. Toggle which attributes are copied onto every part.',
+   type:'chips', def:''},
+  {group:'out', key:'working_crs', label:'Working CRS',
+   hint:'Metric CRS used for all measurements, normally the UTM zone of the area.',
+   type:'text', def:'EPSG:32750'},
+  {group:'out', key:'round_digits', label:'Rounding',
+   hint:'Decimal places for heights, areas and volumes.',
+   type:'range', min:0, max:6, step:1, def:2, unit:'dp'},
+
+  {group:'exec', key:'workers', label:'Parallel workers',
+   hint:'Buildings processed at the same time. 0 = automatic (up to 4 on every platform). Manual maximum: 8.',
+   type:'number', min:0, max:8, step:1, def:0},
+  {group:'exec', key:'gdal_cache_mb', label:'Raster cache',
+   hint:'Memory for re-using raster tiles just read. Raise it for very large DSMs if RAM allows.',
+   type:'number', min:64, max:16384, step:64, def:512, unit:'MB'}
+];
+
+const REASONS = {
+  AUTHORITATIVE_ROOT: 'Root footprint, has upper parts',
+  SINGLE_MASS_UNIFORM_HEIGHT: 'Single mass · roof height is uniform',
+  SINGLE_MASS_SINGLE_HEIGHT_CLASS: 'Single mass · one height group',
+  SINGLE_MASS_NO_FOOTPRINT_CHANGE: 'Single mass · upper levels do not shrink enough',
+  SINGLE_MASS_INSUFFICIENT_BUILDING_PIXELS: 'Single mass · too few roof pixels',
+  SINGLE_MASS_DERIVED_PARTS_FILTERED: 'Single mass · upper parts too small',
+  HEIGHT_AND_FOOTPRINT_CHANGE: 'Upper part on its parent',
+  HEIGHT_AND_FOOTPRINT_CHANGE_ANCESTOR_FALLBACK: 'Upper part attached to a lower ancestor'
+};
+const SKIP_REASONS = {
+  INVALID_OR_EMPTY_FOOTPRINT: 'Footprint empty or not a polygon',
+  OUTSIDE_ANALYSIS_GRID: 'Outside the DSM',
+  NO_VALID_DSM_DTM_PIXELS: 'No valid DSM/DTM pixels'
+};
+
+/* --------------------------------------------------------------- deck.gl */
+const lightingEffect = new LightingEffect({
+  ambientLight: new AmbientLight({color:[255,255,255], intensity:1.35}),
+  directionalLight: new DirectionalLight({color:[255,255,255], intensity:1.8, direction:[-3,-9,-1]})
+});
+
+const deckgl = new Deck({
+  parent: $('map'),
+  initialViewState: DEFAULT_VIEW,
+  controller: true,
+  effects: [lightingEffect],
+  layers: []
+});
+
+/* ======================================================================= */
+/*  Rendering                                                              */
+/* ======================================================================= */
+
+function addZ(coords, z) {
+  return coords.map(ring => ring.map(([lng, lat]) => [lng, lat, z]));
+}
+
+/* Where a part starts vertically in the viewer (spec §22, §29).
+   - LOCAL_PLANE (default): base_height_agl_m. The basemap is a flat plane
+     at z=0, so parts stand on it and stack on their parents.
+   - WORLD_ELEVATION: base_elevation_m (ground + base AGL). Meant for use
+     over a terrain surface; on a flat basemap everything floats by its
+     ground elevation.
+   Extrusion is always part_height_m. Explode adds a viewer-only offset per
+   hierarchy level. Canonical values are never modified. */
+function renderBase(p) {
+  const agl = Number(p.base_height_agl_m) || 0;
+  const base = state.groundElevation
+    ? (Number.isFinite(p.base_elevation_m) ? p.base_elevation_m : (Number(p.ground_elevation_m) || 0) + agl)
+    : agl;
+  return base + (state.explode ? (p.part_level || 0) * state.explodeGap : 0);
+}
+
+/* Coordinates are rewritten only when placement settings change, not on
+   every hover. */
+function renderData() {
+  const key = `${state.groundElevation}|${state.explode}|${state.explodeGap}`;
+  if (state.renderCache?.src === state.data && state.renderCache.key === key) return state.renderCache.data;
+  const features = state.data.features.map(f => {
+    const p = f.properties, z = renderBase(p), g = f.geometry || {};
+    const coords = g.type === 'MultiPolygon'
+      ? g.coordinates.map(poly => addZ(poly, z))
+      : addZ(g.coordinates || [], z);
+    return {...f, properties: {...p, _render_base_m: z}, geometry: {...g, coordinates: coords}};
+  });
+  const data = {type: 'FeatureCollection', features};
+  state.renderCache = {src: state.data, key, data};
+  return data;
+}
+
+const LEVEL_COLORS = [[55,126,184],[77,175,74],[255,127,0],[152,78,163],[228,26,28],[166,86,40]];
+const levelColor = lvl => LEVEL_COLORS[Math.min(lvl || 0, LEVEL_COLORS.length - 1)];
+
+function isHighlighted(f) {
+  const p = f.properties;
+  if (state.treeHoveredPartId) return p.part_id === state.treeHoveredPartId;
+  return state.hoverMode === 'building'
+    ? Boolean((state.pinnedObjectId || state.hoveredObjectId) &&
+              p.object_id === (state.pinnedObjectId || state.hoveredObjectId))
+    : Boolean(state.hoveredPartId && p.part_id === state.hoveredPartId);
+}
+
+function fillColor(f) {
+  if (isHighlighted(f)) return [255,221,74,245];
+  if (!state.decomposition) return [74,119,152,215];
+  const c = levelColor(f.properties.part_level);
+  return [c[0], c[1], c[2], 210];
+}
+
+/* Created once and reused: a new TileLayer instance with a new getTileData
+   function on every hover would make deck.gl refetch tiles. */
+const BASEMAP = new TileLayer({
+  id: 'big-rupabumi-basemap',
+  tileSize: 256, minZoom: 0, maxZoom: 16, pickable: false,
+  // BIG ArcGIS cached tiles use /tile/{level}/{row}/{column} = /tile/{z}/{y}/{x}
+  getTileData: async ({index, signal}) => {
+    const {x, y, z} = index;
+    const url = `https://geoservices.big.go.id/rbi/rest/services/BASEMAP/` +
+                `Rupabumi_Indonesia/MapServer/tile/${z}/${y}/${x}`;
+    const res = await fetch(url, {signal, mode:'cors'});
+    if (!res.ok) throw new Error(`BIG tile HTTP ${res.status}`);
+    const blob = await res.blob();
+    if ('createImageBitmap' in window) return createImageBitmap(blob);
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(blob);
+      img.onload = () => { URL.revokeObjectURL(objectUrl); resolve(img); };
+      img.onerror = e => { URL.revokeObjectURL(objectUrl); reject(e); };
+      img.src = objectUrl;
+    });
+  },
+  renderSubLayers: props => {
+    const {bbox:{west, south, east, north}} = props.tile;
+    return new BitmapLayer(props, {id:`${props.id}-bitmap`, data:null,
+                                   image:props.data, bounds:[west, south, east, north]});
+  },
+  onTileError: () => {
+    state.basemapErrors += 1;
+    if (state.basemapErrors === 4) {
+      $('attribution').classList.add('bad');
+      $('attribution').textContent = 'Basemap unavailable (offline or blocked) · data still shown';
+    }
+  }
+});
+
+function buildLayers() {
+  const layers = [BASEMAP];
+  if (!state.data) return layers;
+  layers.push(new GeoJsonLayer({
+    id: 'atap-parts',
+    data: renderData(),
+    extruded: true, wireframe: true, filled: true, stroked: false, pickable: true,
+    getElevation: f => f.properties.part_height_m,
+    getFillColor: fillColor,
+    getLineColor: [25,25,25,220],
+    material: {ambient:0.35, diffuse:0.6, shininess:24, specularColor:[90,90,90]},
+    updateTriggers: {
+      getFillColor: [state.hoverMode, state.decomposition, state.hoveredPartId, state.hoveredObjectId]
+    },
+    onHover: handleHover,
+    onClick: handleClick
+  }));
+  return layers;
+}
+
+function updateLayers() { deckgl.setProps({layers: buildLayers()}); }
+
+/* ======================================================================= */
+/*  Camera                                                                 */
+/* ======================================================================= */
+
+function computeBounds(fc) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const walk = c => {
+    if (typeof c[0] === 'number') {
+      minX = Math.min(minX, c[0]); maxX = Math.max(maxX, c[0]);
+      minY = Math.min(minY, c[1]); maxY = Math.max(maxY, c[1]);
+    } else c.forEach(walk);
+  };
+  for (const f of fc.features || []) if (f.geometry?.coordinates) walk(f.geometry.coordinates);
+  return Number.isFinite(minX) ? [minX, minY, maxX, maxY] : null;
+}
+
+function fitBounds(bounds, {pitch = 52, bearing = -25} = {}) {
+  if (!bounds) return;
+  const [minX, minY, maxX, maxY] = bounds;
+  const width = Math.max(240, window.innerWidth - 430);   // panel takes the left edge
+  const height = Math.max(240, window.innerHeight - 120);
+  const merc = lat => Math.log(Math.tan(Math.PI/4 + (lat*Math.PI/180)/2));
+  const worldX = Math.abs(maxX - minX) / 360;
+  const worldY = Math.abs(merc(maxY) - merc(minY)) / (2*Math.PI);
+  const zoomX = worldX > 0 ? Math.log2(width  / (512*worldX)) : 20;
+  const zoomY = worldY > 0 ? Math.log2(height / (512*worldY)) : 20;
+  const zoom = Math.max(2, Math.min(20, Math.min(zoomX, zoomY) - 0.35));
+  deckgl.setProps({initialViewState: {
+    longitude: (minX+maxX)/2, latitude: (minY+maxY)/2,
+    zoom, pitch, bearing, transitionDuration: 650
+  }});
+}
+
+/* ======================================================================= */
+/*  Tooltip                                                                */
+/* ======================================================================= */
+
+const tooltip = $('tooltip');
+
+function handleHover(info) {
+  const f = info.object;
+  if (!f) { clearHover(); return; }
+  if (state.hoveredPartId === f.properties.part_id && tooltip.style.display === 'block') {
+    placeTooltip(info); return;
+  }
+  state.hoveredPartId = f.properties.part_id;
+  state.hoveredObjectId = f.properties.object_id;
+  tooltip.innerHTML = state.hoverMode === 'building'
+    ? buildingTooltip(state.hoveredObjectId) : partTooltip(f);
+  placeTooltip(info);
+  updateLayers();
+}
+
+function handleClick(info) {
+  if (state.hoverMode !== 'building' || !info.object) return;
+  state.pinnedObjectId = info.object.properties.object_id;
+  state.hoveredObjectId = state.pinnedObjectId;
+  renderHierarchy();
+  updateLayers();
+}
+
+function clearHover() {
+  if (!state.hoveredPartId && tooltip.style.display === 'none') return;
+  state.hoveredPartId = null;
+  state.hoveredObjectId = null;
+  state.pinnedObjectId = null;
+  state.treeHoveredPartId = null;
+  tooltip.style.display = 'none';
+  updateLayers();
+}
+
+function placeTooltip(info) {
+  tooltip.style.display = 'block';
+  const pad = 14, rect = tooltip.getBoundingClientRect();
+  tooltip.style.left = `${Math.max(pad, Math.min(info.x + 16, window.innerWidth - rect.width - pad))}px`;
+  tooltip.style.top  = `${Math.max(pad, Math.min(info.y + 16, window.innerHeight - rect.height - pad))}px`;
+}
+
+function vref() { return state.data?.vertical_reference || {}; }
+
+function groundLabel() {
+  const v = vref();
+  if (!v.mode) return '—';
+  const src = v.ground_source_type || v.ground_source || 'DTM';
+  return `${src} · ${v.base_elevation_stat ?? '—'}${v.vertical_datum ? ` · ${v.vertical_datum}` : ''}`;
+}
+
+function reasonText(code) {
+  return REASONS[code] ? `${REASONS[code]}` : (code ?? '—');
+}
+
+function partTooltip(f) {
+  const p = f.properties;
+  const proc = state.data?.processing;
+  const grid = proc?.analysis_resolution_x_m != null
+    ? `${num(proc.analysis_resolution_x_m, 3)} × ${num(proc.analysis_resolution_y_m, 3)} m` : '—';
+  const lowCov = Number(p.valid_coverage_ratio) < LOW_COVERAGE;
+  return `
+    <div class="tooltip-title">${esc(p.part_id)}</div>
+    <div class="tooltip-sub">${esc(p.object_id)} · level ${p.part_level} · ${esc(reasonText(p.decomposition_reason))}</div>
+
+    <div class="tooltip-section">Hierarchy</div>
+    ${row('Parent part', p.parent_part_id ?? 'ROOT')}
+    ${row('Reason code', p.decomposition_reason)}
+    ${p.parent_containment_ratio != null ? row('Overlap with parent', pct(p.parent_containment_ratio)) : ''}
+
+    <div class="tooltip-section">Heights</div>
+    ${row('Ground elevation', `${num(p.ground_elevation_m)} m`)}
+    ${row('Base → top (above ground)', `${num(p.base_height_agl_m)} → ${num(p.top_height_agl_m)} m`)}
+    ${row('Part height', `${num(p.part_height_m)} m`)}
+    ${row('Base → top elevation', `${num(p.base_elevation_m)} → ${num(p.top_elevation_m)} m`)}
+    ${row('Ground reference', groundLabel())}
+
+    <div class="tooltip-section">Geometry</div>
+    ${row('Length × width', `${n1(p.oriented_length_m)} × ${n1(p.oriented_width_m)} m`)}
+    ${row('Orientation', `${n1(p.orientation_deg)}°`)}
+    ${row('Area (net of holes)', `${num(p.area_m2)} m²`)}
+    ${row('Perimeter', `${num(p.perimeter_m)} m`)}
+    ${row('Volume', `${num(p.volume_m3)} m³`)}
+    ${row('Interior rings', intFmt(p.interior_ring_count))}
+    ${row('Outline method', p.geometry_method)}
+
+    <div class="tooltip-section">Raster evidence</div>
+    ${row('Expected / valid pixels', `${intFmt(p.expected_pixel_count)} / ${intFmt(p.valid_pixel_count)}`)}
+    ${row('Supporting pixels', intFmt(p.support_pixel_count))}
+    ${row('Valid coverage', pct(p.valid_coverage_ratio))}
+    ${row('Analysis grid', grid)}
+
+    ${lowCov ? `<div class="tooltip-note warn">
+      <svg class="ico sm" style="stroke:#ffe2b0"><use href="#i-alert"/></svg>
+      <span>Under ${LOW_COVERAGE*100}% of this part has valid DSM/DTM pixels. Treat its heights with care.</span></div>` : ''}
+    ${state.explode || state.groundElevation ? `<div class="tooltip-note">
+      <svg class="ico sm" style="stroke:#d4dbe4"><use href="#i-info"/></svg>
+      <span>Drawn from z = ${num(p._render_base_m)} m (${state.groundElevation ? 'world elevation' : 'local plane'}${state.explode ? ', exploded' : ''}). Stored values are unchanged.</span></div>` : ''}
+  `;
+}
+
+function buildingTooltip(objectId) {
+  const parts = (state.byObject.get(objectId) || [])
+    .slice().sort((a,b) => a.properties.part_level - b.properties.part_level
+                         || a.properties.base_height_agl_m - b.properties.base_height_agl_m);
+  if (!parts.length) return '';
+  const root = parts.find(f => f.properties.parent_part_id == null) || parts[0];
+  const top = Math.max(...parts.map(f => f.properties.top_height_agl_m));
+  const vol = parts.reduce((s,f) => s + Number(f.properties.volume_m3 || 0), 0);
+  const rings = parts.reduce((s,f) => s + Number(f.properties.interior_ring_count || 0), 0);
+  const rp = root.properties;
+
+  return `
+    <div class="tooltip-title">${esc(objectId)}</div>
+    <div class="tooltip-sub">Building · ${parts.length} part${parts.length>1?'s':''} · ${esc(reasonText(rp.decomposition_reason))}</div>
+
+    <div class="tooltip-section">Building summary</div>
+    ${row('Root footprint area', `${num(rp.area_m2)} m²`)}
+    ${row('Ground elevation', `${num(rp.ground_elevation_m)} m`)}
+    ${row('Highest top (above ground)', `${num(top)} m`)}
+    ${row('Highest top elevation', `${num(Number(rp.ground_elevation_m || 0) + top)} m`)}
+    ${row('Total volume', `${num(vol)} m³`)}
+    ${row('Interior rings (all parts)', intFmt(rings))}
+    ${row('Ground reference', groundLabel())}
+
+    <div class="tooltip-section">Nested parts</div>
+    ${parts.map(f => {
+      const p = f.properties, c = levelColor(p.part_level);
+      return `<div class="family-part">
+        <strong>${esc(shortPart(p.part_id))}</strong>
+        <span class="dot" style="background:rgb(${c.join(',')})"></span>
+        <span>${n1(p.base_height_agl_m)}→${n1(p.top_height_agl_m)} m</span>
+        <span>${intFmt(p.volume_m3)} m³</span>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+/* ======================================================================= */
+/*  Dataset loading and validation                                         */
+/* ======================================================================= */
+
+/* Mirrors the engine's invariant checks (spec §30), minus geometric
+   containment, which needs a projected CRS. The engine refuses to write a
+   file that fails these, so a problem here means the file was edited or
+   produced by something else. */
+function validateDataset(data) {
+  const digits = data.processing?.parameters?.round_digits ?? 2;
+  const tol = Math.max(Math.pow(10, -digits), 1e-6) * 1.0001;
+  const problems = [];
+  const byId = new Map();
+  const roots = new Map();
+
+  for (const f of data.features) {
+    const p = f.properties;
+    if (byId.has(p.part_id)) problems.push(`Duplicate part_id: ${p.part_id}`);
+    byId.set(p.part_id, f);
+    if (f.id != null && String(f.id) !== String(p.part_id)) problems.push(`Feature.id differs from part_id: ${p.part_id}`);
+    if (p.parent_part_id == null) roots.set(p.object_id, (roots.get(p.object_id) || 0) + 1);
+  }
+  for (const [oid, n] of roots) if (n !== 1) problems.push(`Building ${oid} has ${n} roots`);
+
+  for (const f of data.features) {
+    const p = f.properties, id = p.part_id;
+    if (Math.abs((p.top_height_agl_m - p.base_height_agl_m) - p.part_height_m) > tol)
+      problems.push(`Height invariant failed: ${id}`);
+    if (Math.abs(p.ground_elevation_m + p.base_height_agl_m - p.base_elevation_m) > tol)
+      problems.push(`Base elevation invariant failed: ${id}`);
+    if (Math.abs(p.ground_elevation_m + p.top_height_agl_m - p.top_elevation_m) > tol)
+      problems.push(`Top elevation invariant failed: ${id}`);
+    if (p.part_height_m < 0 || (p.parent_part_id != null && p.part_height_m <= 0))
+      problems.push(`Invalid part height: ${id}`);
+    if (!(p.valid_coverage_ratio >= 0 && p.valid_coverage_ratio <= 1))
+      problems.push(`Coverage outside 0–1: ${id}`);
+    // Engine computes volume from the rounded area and height.
+    if (Math.abs(p.area_m2 * p.part_height_m - p.volume_m3) > Math.max(0.1, tol * Math.max(p.volume_m3, 1)))
+      problems.push(`Volume invariant failed: ${id}`);
+
+    if (p.parent_part_id != null) {
+      const parent = byId.get(p.parent_part_id);
+      if (!parent) { problems.push(`Missing parent: ${id}`); continue; }
+      const pp = parent.properties;
+      if (pp.object_id !== p.object_id) problems.push(`Parent belongs to another building: ${id}`);
+      if (p.part_level !== pp.part_level + 1) problems.push(`Hierarchy level mismatch: ${id}`);
+      if (Math.abs(p.base_height_agl_m - pp.top_height_agl_m) > tol) problems.push(`Vertical stack mismatch: ${id}`);
+    }
+  }
+  return problems;
+}
+
+/* Rejects files that are not ATAP part collections before touching state. */
+function checkCompat(fc) {
+  if (fc?.type !== 'FeatureCollection' || !Array.isArray(fc.features))
+    throw new Error('That file is not a GeoJSON FeatureCollection.');
+  if (!fc.features.length) throw new Error('The file contains no features.');
+  const p = fc.features[0].properties || {};
+  if (!('part_id' in p) || !('part_height_m' in p)) {
+    if ('building_height_m' in p)
+      throw new Error('This is a legacy LOD1 file (building_height_m). Re-run it with the current ATAP engine.');
+    throw new Error('No part_id / part_height_m found. This does not look like ATAP output.');
+  }
+}
+
+function applyDataset(fc, label) {
+  state.data = fc;
+  state.renderCache = null;
+  state.byObject = new Map();
+  for (const f of fc.features) {
+    const oid = f.properties.object_id;
+    if (!state.byObject.has(oid)) state.byObject.set(oid, []);
+    state.byObject.get(oid).push(f);
+  }
+  state.hoveredPartId = null;
+  state.hoveredObjectId = null;
+  tooltip.style.display = 'none';
+
+  const problems = validateDataset(fc);
+  state.bounds = computeBounds(fc);
+
+  renderHeader();
+  renderStats(problems);
+  renderSkipped();
+  renderHierarchy();
+  renderArtifacts();
+  updateLayers();
+  fitBounds(state.bounds);
+
+  $('view-empty').style.display = 'none';
+  $('view-content').style.display = 'block';
+  $('legend').classList.add('show');
+
+  const profile = fc.atap?.profile_version;
+  if (problems.length) setChip('bad', `${problems.length} INVARIANT WARNING${problems.length>1?'S':''}`);
+  else if (!fc.atap) setChip('warn', 'NO ATAP HEADER');
+  else if (profile !== EXPECTED_PROFILE) setChip('warn', `PROFILE ${profile} · VIEWER EXPECTS ${EXPECTED_PROFILE}`);
+  else setChip('ok', 'TERRAIN-NORMALIZED · DSM − DTM');
+
+  setStatusSummary(label);
+  updateSourceLine();
+  showTab('view');
+}
+
+/* ======================================================================= */
+/*  Panel rendering                                                        */
+/* ======================================================================= */
+
+/* Sticky messages (errors, result summaries) survive background refreshes
+   until the user changes an input. */
+function setStatus(html, sticky) {
+  state.statusSticky = Boolean(sticky);
+  $('status').innerHTML = html;
+}
+
+function setChip(kind, text) {
+  const chip = $('chip');
+  chip.className = 'chip' + (kind ? ' ' + kind : '');
+  chip.textContent = text;
+}
+
+function renderHeader() {
+  const d = state.data, el = $('header-info');
+  if (!d?.processing && !d?.inputs) { el.textContent = 'No header metadata in this file.'; return; }
+  const v = d.vertical_reference || {}, p = d.processing || {}, proc = d.process || {},
+        inputs = d.inputs || {}, ex = p.execution || {}, a = d.atap || {};
+  const ids = inputs.footprint?.id_source;
+  const idText = !ids ? '—' : ids.mode === 'feature_id' ? 'Feature.id' : `properties.${ids.field}`;
+  const res = r => {
+    if (r?.resolution_x == null) return '—';
+    if (/degree/i.test(r.resolution_unit || '')) return `${num(r.resolution_x * 3600, 2)}″ (${num(r.resolution_x * 111320, 1)} m approx.)`;
+    return `${num(r.resolution_x, 3)} ${r.resolution_unit === 'metre' ? 'm' : (r.resolution_unit ?? '')}`.trim();
+  };
+  el.innerHTML = `
+    ${rowc('Engine / profile', `${a.engine_version ?? '—'} / ${a.profile_version ?? '—'}`)}
+    ${rowc('Started', proc.started_at_utc ? new Date(proc.started_at_utc).toLocaleString() : '—')}
+    ${rowc('Duration', proc.duration_s != null ? `${Number(proc.duration_s).toFixed(1)} s` : '—')}
+    ${ex.workers != null ? rowc('Workers', ex.workers) : ''}
+    <div class="divider"></div>
+    ${rowc('Footprint', inputs.footprint ? `${inputs.footprint.file_name} · ${intFmt(inputs.footprint.feature_count)} features` : '—')}
+    ${rowc('Building ID', idText)}
+    ${rowc('DSM', inputs.dsm ? `${inputs.dsm.file_name} · ${res(inputs.dsm)}` : '—')}
+    ${rowc('DTM', inputs.dtm ? `${inputs.dtm.file_name} · ${res(inputs.dtm)}` : '—')}
+    <div class="divider"></div>
+    ${rowc('Analysis grid', p.analysis_resolution_x_m != null
+        ? `${p.analysis_grid_source ?? 'DSM'} · ${num(p.analysis_resolution_x_m, 3)} × ${num(p.analysis_resolution_y_m, 3)} m` : '—')}
+    ${rowc('DSM reprojected', p.dsm_reprojected == null ? '—' : p.dsm_reprojected ? 'yes' : 'no')}
+    ${rowc('DTM resampling', p.dtm_resampling ?? '—')}
+    ${rowc('Working / output CRS', `${p.working_crs ?? '—'} / ${p.output_crs ?? '—'}`)}
+    <div class="divider"></div>
+    ${rowc('Vertical mode', v.mode ?? '—')}
+    ${rowc('Height surface', v.height_surface ?? '—')}
+    ${rowc('Ground reference', groundLabel())}
+    ${rowc('Vertical datum', v.vertical_datum ?? 'not recorded')}
+  `;
+}
+
+function renderStats(problems) {
+  const fc = state.data, s = fc.summary || {};
+  const buildings = s.building_count ?? state.byObject.size;
+  const top = fc.features.length ? Math.max(...fc.features.map(f => f.properties.top_height_agl_m)) : 0;
+  const vol = s.total_volume_m3 ?? fc.features.reduce((a,f) => a + Number(f.properties.volume_m3 || 0), 0);
+  const skipped = s.skipped_building_count ?? 0;
+
+  $('stats').innerHTML = `
+    <div class="stat"><b>${intFmt(buildings)}</b><small>buildings</small></div>
+    <div class="stat"><b>${intFmt(fc.features.length)}</b><small>parts</small></div>
+    <div class="stat"><b>${n1(top)} m</b><small>tallest top above ground</small></div>
+    <div class="stat"><b>${intFmt(vol)} m³</b><small>total volume</small></div>
+    ${s.decomposed_building_count != null ? `<div class="stat"><b>${intFmt(s.decomposed_building_count)}</b><small>split into parts</small></div>` : ''}
+    ${skipped ? `<div class="stat alert"><b>${intFmt(skipped)}</b><small>skipped buildings</small></div>` : ''}
+  `;
+
+  $('result-notice').innerHTML = problems.length
+    ? `<div class="notice bad"><svg class="ico"><use href="#i-alert"/></svg>
+        <span><b>${problems.length} invariant check${problems.length>1?'s':''} failed.</b><br>${esc(problems[0])}${problems.length>1?` (and ${problems.length-1} more, see console)`:''}</span></div>`
+    : '';
+  if (problems.length) console.warn('ATAP invariant problems', problems);
+}
+
+function renderSkipped() {
+  const list = state.data.summary?.skipped_buildings || [];
+  const el = $('skipped-section');
+  if (!list.length) { el.innerHTML = ''; return; }
+  const shown = list.slice(0, 300);
+  el.innerHTML = `
+    <div class="section-label">Skipped buildings · ${intFmt(list.length)}<div class="rule"></div></div>
+    <div class="skip-list">
+      ${shown.map(s => `<div class="skip-item"><b>${esc(s.object_id)}</b>
+        <span title="${esc(s.reason)}">${esc(SKIP_REASONS[s.reason] || s.reason)}</span></div>`).join('')}
+    </div>
+    ${list.length > shown.length ? `<p class="hint">…and ${intFmt(list.length - shown.length)} more in <code>summary.skipped_buildings</code>.</p>` : ''}
+    <p class="hint">Skipped buildings have no parts in the output. They are listed so nothing disappears silently.</p>`;
+}
+
+function renderHierarchy() {
+  const el = $('hierarchy-section');
+  if (!state.data || state.hoverMode !== 'building') {
+    el.innerHTML = '';
+    return;
+  }
+  if (!state.pinnedObjectId) {
+    el.innerHTML = `<div class="section-label">Hierarchy<div class="rule"></div></div>
+      <p class="hint">Click a building on the map to pin its part tree.</p>`;
+    return;
+  }
+  const parts = state.byObject.get(state.pinnedObjectId) || [];
+  const byParent = new Map();
+  for (const feature of parts) {
+    const parent = feature.properties.parent_part_id;
+    if (!byParent.has(parent)) byParent.set(parent, []);
+    byParent.get(parent).push(feature);
+  }
+  for (const children of byParent.values()) children.sort((a, b) =>
+    a.properties.part_level - b.properties.part_level ||
+    String(a.properties.part_id).localeCompare(String(b.properties.part_id)));
+  const node = feature => {
+    const p = feature.properties;
+    const children = byParent.get(p.part_id) || [];
+    return `<details class="tree-node" open>
+      <summary data-tree-part="${esc(p.part_id)}" aria-label="Part ${esc(p.part_id)}, level ${p.part_level}, ${n1(p.base_height_agl_m)} to ${n1(p.top_height_agl_m)} metres above ground, ${intFmt(p.volume_m3)} cubic metres">
+        <span class="tree-part">${esc(p.part_id)}</span>
+        <span class="tree-metrics">${n1(p.base_height_agl_m)}→${n1(p.top_height_agl_m)} m · ${intFmt(p.volume_m3)} m³</span>
+        <span class="tree-level">Level ${p.part_level}</span>
+      </summary>
+      ${children.length ? `<div class="tree-children">${children.map(node).join('')}</div>` : ''}
+    </details>`;
+  };
+  const roots = byParent.get(null) || [];
+  el.innerHTML = `<div class="section-label">Hierarchy · ${esc(state.pinnedObjectId)}<div class="rule"></div>
+      <button class="link-btn" id="btn-unpin" type="button">Unpin</button></div>
+    <div class="tree" id="hierarchy-tree">${roots.map(node).join('')}</div>`;
+  $('btn-unpin').addEventListener('click', () => {
+    state.pinnedObjectId = null;
+    state.treeHoveredPartId = null;
+    renderHierarchy();
+    updateLayers();
+  });
+  el.querySelectorAll('[data-tree-part]').forEach(item => {
+    const enter = () => {
+      state.treeHoveredPartId = item.dataset.treePart;
+      updateLayers();
+    };
+    const leave = () => {
+      state.treeHoveredPartId = null;
+      updateLayers();
+    };
+    item.addEventListener('mouseenter', enter);
+    item.addEventListener('mouseleave', leave);
+    item.addEventListener('focus', enter);
+    item.addEventListener('blur', leave);
+  });
+}
+
+function renderArtifacts() {
+  const el = $('artifacts');
+  if (!state.activeRun) {
+    el.innerHTML = `<p class="hint" style="margin:0">Opened from a local file, no server artifacts.</p>`;
+    return;
+  }
+  const base = `${state.apiBase}/api/jobs/${state.activeRun}/artifacts`;
+  const kinds = [['output','Result GeoJSON','EPSG:4326 · parts + metadata'],['log','Run log','engine messages']];
+  el.innerHTML = kinds.map(([k,label,sub]) =>
+    `<a class="history-item" href="${base}/${k}" download>
+       <svg class="ico"><use href="#i-download"/></svg>
+       <span class="hi-text"><b>${label}</b><small>${sub}</small></span>
+     </a>`).join('');
+}
+
+function setStatusSummary(label) {
+  const fc = state.data;
+  const roots = fc.features.filter(f => f.properties.parent_part_id == null);
+  const grounds = roots.map(f => Number(f.properties.ground_elevation_m)).filter(Number.isFinite);
+  const gtxt = grounds.length
+    ? `ground <b>${Math.min(...grounds).toFixed(1)}–${Math.max(...grounds).toFixed(1)} m</b>` : '';
+  setStatus(`${label ? esc(label) + ' · ' : ''}<b>${intFmt(state.byObject.size)}</b> buildings · <b>${intFmt(fc.features.length)}</b> parts${gtxt ? ' · ' + gtxt : ''}`, true);
+}
+
+function updateSourceLine() {
+  const v = state.service?.version || state.data?.atap?.engine_version;
+  const src = state.service?.source_url || REPO_URL;
+  $('source-line').innerHTML =
+    `ATAP${v ? ' ' + esc(v) : ''} · AGPL-3.0-only · <a href="${esc(src)}" target="_blank" rel="noopener">Source code</a>`;
+}
+
+/* ---------------------------------------------------------- parameter UI */
+function paramControl(def) {
+  const id = `p-${def.key}`;
+  let field;
+  if (def.type === 'range') {
+    field = `<div class="range-wrap">
+      <input id="${id}" aria-label="${esc(def.label)}" type="range" min="${def.min}" max="${def.max}" step="${def.step}" value="${def.def}">
+      <b id="${id}-out">${fmtParam(def, def.def)}</b></div>`;
+  } else if (def.type === 'bool') {
+    field = `<input id="${id}" aria-label="${esc(def.label)}" type="checkbox" ${def.def ? 'checked' : ''}>`;
+  } else if (def.type === 'segmented' || def.type === 'chips') {
+    field = `<input id="${id}" type="hidden" value="${esc(def.def)}">
+      <div id="${id}-buttons" class="param-buttons ${def.type}" role="group" aria-label="${esc(def.label)}"></div>`;
+  } else if (def.type === 'select') {
+    field = `<select id="${id}" aria-label="${esc(def.label)}">${(def.key === 'id_field' ? [''] : def.options).map(o =>
+      `<option value="${esc(o)}" ${o===def.def?'selected':''}>${esc(o || 'Select a property')}</option>`).join('')}</select>`;
+  } else if (def.type === 'number') {
+    field = `<input id="${id}" aria-label="${esc(def.label)}" type="number" min="${def.min}" max="${def.max}" step="${def.step}" value="${def.def}">`;
+  } else {
+    field = `<input id="${id}" aria-label="${esc(def.label)}" type="text" value="${esc(def.def)}"
+      ${def.placeholder ? `placeholder="${esc(def.placeholder)}"` : ''} ${def.list ? `list="${def.list}"` : ''}
+      spellcheck="false" autocomplete="off">`;
+  }
+  const unit = def.type === 'number' && def.unit ? ` (${def.unit})` : '';
+  const stack = def.type === 'chips' ? ' stack' : '';
+  return `<div class="control${stack}" id="row-${def.key}">
+    <span class="lbl"><strong>${def.label}${unit}</strong><small>${def.hint}</small></span>${field}</div>`;
+}
+
+function fmtParam(def, v) {
+  const n = Number(v);
+  if (def.fmt === 'pct') return `${Math.round(n * 100)}%`;
+  const s = def.step && def.step < 1 ? n.toFixed(def.step < 0.1 ? 2 : 1) : String(n);
+  return def.unit ? `${s} ${def.unit}` : s;
+}
+
+function readParam(def, el) {
+  if (def.type === 'chips') return JSON.parse(el.value);
+  if (def.type === 'bool') return el.checked;
+  if (def.type === 'range' || def.type === 'number') return Number(el.value);
+  return el.value;
+}
+
+function attributeKeys(value) {
+  return Array.isArray(value) ? value : String(value ?? '').split(',').map(v => v.trim()).filter(Boolean);
+}
+
+function renderParamButtons(def) {
+  if (def.type !== 'segmented' && def.type !== 'chips') return;
+  const selected = def.type === 'chips' ? attributeKeys(state.params[def.key]) : [state.params[def.key]];
+  const options = def.type === 'chips'
+    ? [...new Set([...(state.footprintInfo?.keys || attributeKeys(def.def)), ...selected])]
+    : def.options;
+  const group = $(`p-${def.key}-buttons`);
+  const focused = group.contains(document.activeElement) ? document.activeElement.dataset.value : null;
+  group.innerHTML = options.map(value =>
+    `<button type="button" class="param-option" data-value="${esc(value)}" aria-pressed="${selected.includes(value)}">${esc(value)}</button>`).join('');
+  if (focused != null) [...group.querySelectorAll('button')].find(button => button.dataset.value === focused)?.focus();
+}
+
+function refreshIdOptions(keys = []) {
+  const el = $('p-id_field'), value = state.params.id_field || '';
+  const options = [...new Set([...keys, ...(value ? [value] : [])])];
+  el.innerHTML = '<option value="">Select a property</option>' + options.map(key =>
+    `<option value="${esc(key)}">${esc(key)}</option>`).join('');
+  el.value = value;
+}
+
+function mountParams() {
+  for (const g of ['core','terrain','geom','out','exec']) {
+    $(`params-${g}`).innerHTML = PARAMS.filter(p => p.group === g).map(paramControl).join('');
+  }
+  for (const def of PARAMS) {
+    const el = $(`p-${def.key}`);
+    state.params[def.key] = def.def;
+    if (def.type === 'chips') setParam(def.key, attributeKeys(def.def));
+    if (def.type === 'segmented' || def.type === 'chips') {
+      const group = $(`p-${def.key}-buttons`);
+      group.addEventListener('click', event => {
+        const button = event.target.closest('[data-value]');
+        if (!button) return;
+        const value = button.dataset.value;
+        if (def.type === 'chips') {
+          const selected = attributeKeys(state.params[def.key]);
+          setParam(def.key, selected.includes(value) ? selected.filter(key => key !== value) : [...selected, value]);
+        } else setParam(def.key, value);
+      });
+      renderParamButtons(def);
+    }
+    const ev = def.type === 'bool' || def.type === 'select' ? 'change' : 'input';
+    el.addEventListener(ev, () => {
+      state.params[def.key] = readParam(def, el);
+      if (def.type === 'range') $(`p-${def.key}-out`).textContent = fmtParam(def, el.value);
+      if (def.key === 'regularize') syncDependencies();
+      if (def.key === 'id_field' || def.key === 'working_crs') { state.statusSticky = false; renderFootprintInfo(); }
+    });
+  }
+  syncDependencies();
+}
+
+function setParam(key, value) {
+  const def = PARAMS.find(p => p.key === key), el = $(`p-${key}`);
+  if (def.key === 'id_field') {
+    state.params.id_field = value || '';
+    refreshIdOptions(state.footprintInfo?.keys || []);
+  }
+  if (def.type === 'chips') value = JSON.stringify(attributeKeys(value));
+  if (def.type === 'bool') el.checked = Boolean(value); else el.value = value;
+  state.params[key] = readParam(def, el);
+  renderParamButtons(def);
+  if (def.type === 'range') $(`p-${key}-out`).textContent = fmtParam(def, el.value);
+}
+
+function resetParams() {
+  for (const def of PARAMS) setParam(def.key,
+    def.type === 'chips' ? (state.footprintInfo?.keys || attributeKeys(def.def))
+      : def.key === 'id_field' && state.footprintInfo?.keys?.includes('id') ? 'id' : def.def);
+  syncDependencies();
+  renderFootprintInfo();
+}
+
+function syncDependencies() {
+  for (const def of PARAMS.filter(p => p.dependsOn)) {
+    const on = Boolean(state.params[def.dependsOn]);
+    $(`row-${def.key}`).classList.toggle('disabled', !on);
+    $(`p-${def.key}`).disabled = !on;
+  }
+}
+
+function collectParams() {
+  const out = {};
+  for (const def of PARAMS) {
+    let v = state.params[def.key];
+    if (def.type === 'chips') { out[def.key] = [...v]; continue; }
+    if (def.type === 'text') v = String(v ?? '').trim();
+    if (def.nullable && v === '') continue;
+    if (v === '' || v == null || Number.isNaN(v)) continue;
+    out[def.key] = v;
+  }
+  return out;
+}
+
+/* ======================================================================= */
+/*  File inputs and footprint preflight                                    */
+/* ======================================================================= */
+
+const FILE_SLOTS = [
+  {slot:'footprint', drop:'drop-footprint', input:'file-footprint', icon:'file',
+   title:'Building footprint', note:'GeoJSON · authoritative outlines'},
+  {slot:'dsm', drop:'drop-dsm', input:'file-dsm', icon:'layers',
+   title:'DSM', note:'GeoTIFF · surface heights, analysis grid'},
+  {slot:'dtm', drop:'drop-dtm', input:'file-dtm', icon:'layers',
+   title:'DTM', note:'GeoTIFF · bare-ground heights'}
+];
+
+function humanSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes/1024).toFixed(0)} KB`;
+  if (bytes < 1073741824) return `${(bytes/1048576).toFixed(1)} MB`;
+  return `${(bytes/1073741824).toFixed(2)} GB`;
+}
+
+function uploadLimitBytes() {
+  const mb = Number(state.service?.max_upload_mb);
+  return Number.isFinite(mb) && mb > 0 ? mb * 1048576 : null;
+}
+
+function renderSlot(cfg) {
+  const el = $(cfg.drop);
+  const file = state.files[cfg.slot];
+  const limit = uploadLimitBytes();
+  const tooLarge = Boolean(file && limit && file.size > limit);
+  el.classList.toggle('filled', Boolean(file) && !tooLarge);
+  el.classList.toggle('too-large', tooLarge);
+  el.classList.toggle('required-missing', !file);
+  el.innerHTML = file
+    ? `<span class="drop-ico"><svg class="ico"><use href="#i-${tooLarge ? 'alert' : 'check'}"/></svg></span>
+       <span class="drop-text"><b>${esc(cfg.title)}</b><small>${esc(file.name)} · ${humanSize(file.size)}${
+         tooLarge ? ` · over the ${state.service.max_upload_mb} MB limit` : ''}</small></span>
+       <span class="drop-clear" data-clear="${cfg.slot}" role="button" tabindex="0" aria-label="Remove file">
+         <svg class="ico sm"><use href="#i-x"/></svg></span>`
+    : `<span class="drop-ico"><svg class="ico"><use href="#i-${cfg.icon}"/></svg></span>
+       <span class="drop-text"><b>${esc(cfg.title)}</b><small>${esc(cfg.note)} · click or drop</small></span>
+       <span class="drop-clear"><svg class="ico sm"><use href="#i-upload"/></svg></span>`;
+  refreshRunButton();
+}
+
+function setFile(cfg, file) {
+  state.files[cfg.slot] = file;
+  state.statusSticky = false;
+  renderSlot(cfg);
+  if (cfg.slot === 'footprint') inspectFootprint(file);
+}
+
+function mountFileSlots() {
+  for (const cfg of FILE_SLOTS) {
+    const drop = $(cfg.drop), input = $(cfg.input);
+    drop.addEventListener('click', e => {
+      if (e.target.closest('[data-clear]')) { input.value = ''; setFile(cfg, null); return; }
+      input.click();
+    });
+    input.addEventListener('change', () => { if (input.files[0]) setFile(cfg, input.files[0]); });
+    ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => {
+      e.preventDefault(); drop.classList.add('over');
+    }));
+    ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => {
+      e.preventDefault(); drop.classList.remove('over');
+    }));
+    drop.addEventListener('drop', e => {
+      e.stopPropagation();
+      const f = e.dataTransfer?.files?.[0];
+      if (f) setFile(cfg, f);
+    });
+    renderSlot(cfg);
+  }
+}
+
+/* Reads the footprint in the browser to catch the most common failures
+   before uploading: missing/duplicate IDs and a wrong working CRS. */
+async function inspectFootprint(file) {
+  state.footprintInfo = null;
+  if (!file) {
+    setParam('id_field', '');
+    setParam('keep_properties', []);
+    renderFootprintInfo(); return;
+  }
+  if (file.size > FOOTPRINT_INSPECT_LIMIT) {
+    state.footprintInfo = {status:'skipped'}; renderFootprintInfo(); return;
+  }
+  state.footprintInfo = {status:'reading'}; renderFootprintInfo();
+  try {
+    const doc = JSON.parse(await file.text());
+    const feats = doc.type === 'FeatureCollection' ? doc.features
+                : doc.type === 'Feature' ? [doc] : null;
+    if (!Array.isArray(feats)) throw new Error('not a GeoJSON Feature or FeatureCollection');
+
+    const crsName = doc.crs?.properties?.name || null;
+    const geographic = !crsName || /CRS84|EPSG:?:?4326/i.test(crsName);
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, noGeom = 0, nonPoly = 0;
+    const walk = c => {
+      if (typeof c[0] === 'number') {
+        if (c[0] < minX) minX = c[0]; if (c[0] > maxX) maxX = c[0];
+        if (c[1] < minY) minY = c[1]; if (c[1] > maxY) maxY = c[1];
+      } else c.forEach(walk);
+    };
+    const keys = new Set();
+    for (const f of feats) {
+      const g = f.geometry;
+      if (!g) noGeom++;
+      else if (g.type !== 'Polygon' && g.type !== 'MultiPolygon') nonPoly++;
+      else if (geographic) walk(g.coordinates);
+      for (const k of Object.keys(f.properties || {})) keys.add(k);
+    }
+    const info = {
+      status:'ok', count: feats.length, noGeom, nonPoly,
+      props: feats.map(f => f.properties || {}), keys: [...keys].sort(),
+      crsName, geographic, fieldCache: Object.create(null)
+    };
+    if (geographic && Number.isFinite(minX)) {
+      const lon = (minX + maxX) / 2, lat = (minY + maxY) / 2;
+      const zone = Math.min(60, Math.max(1, Math.floor((lon + 180) / 6) + 1));
+      info.utm = {epsg: `EPSG:${(lat >= 0 ? 32600 : 32700) + zone}`, label: `UTM ${zone}${lat >= 0 ? 'N' : 'S'}`};
+    }
+    state.footprintInfo = info;
+    const selected = keys.has('id') ? 'id' : (keys.has(state.params.id_field) ? state.params.id_field : '');
+    setParam('id_field', selected);
+    setParam('keep_properties', info.keys);
+  } catch (err) {
+    state.footprintInfo = {status:'error', message: err.message};
+  }
+  renderFootprintInfo();
+}
+
+function fieldStats(info, field) {
+  if (!Object.hasOwn(info.fieldCache, field)) {
+    const vals = info.props.map(p => p[field]).filter(v => v != null && typeof v !== 'boolean').map(v => String(v).trim()).filter(v => v !== '');
+    info.fieldCache[field] = {present: vals.length, dup: vals.length - new Set(vals.map(String)).size};
+  }
+  return info.fieldCache[field];
+}
+
+/* One properties key for the entire dataset; Feature-level IDs are ignored. */
+function idCheck() {
+  const fi = state.footprintInfo;
+  if (!fi || fi.status !== 'ok') return {ok:true};
+  const field = String(state.params.id_field ?? '') || 'id';
+  const s = fieldStats(fi, field);
+  if (s.present < fi.count) return {ok:false, msg:`Properties key "${field}" is empty on ${intFmt(fi.count - s.present)} of ${intFmt(fi.count)} features. Select an ID properties key below.`};
+  if (s.dup) return {ok:false, msg:`Properties key "${field}" has ${intFmt(s.dup)} duplicate value${s.dup>1?'s':''}.`};
+  return {ok:true, msg:`Building IDs from properties.${field}`};
+}
+
+function checkLine(kind, text, action = '') {
+  const ico = kind === 'ok' ? 'check' : 'alert';
+  return `<div class="check ${kind}"><svg class="ico sm"><use href="#i-${ico}"/></svg><span>${text}</span>${action}</div>`;
+}
+
+function renderFootprintInfo() {
+  const el = $('footprint-info'), fi = state.footprintInfo;
+  if (!fi) { el.innerHTML = ''; refreshRunButton(); return; }
+  if (fi.status === 'reading') { el.innerHTML = `<div class="card">Reading footprint…</div>`; return; }
+  if (fi.status === 'skipped') {
+    el.innerHTML = `<div class="card">${checkLine('warn', 'File too large to check in the browser. IDs and CRS will be checked by the engine.')}</div>`;
+    refreshRunButton(); return;
+  }
+  if (fi.status === 'error') {
+    el.innerHTML = `<div class="card">${checkLine('bad', `Could not read the footprint: ${esc(fi.message)}`)}</div>`;
+    refreshRunButton(); return;
+  }
+  const id = idCheck();
+  const lines = [checkLine('ok', `${intFmt(fi.count)} features`)];
+  if (fi.noGeom || fi.nonPoly)
+    lines.push(checkLine('warn', `${intFmt(fi.noGeom + fi.nonPoly)} without polygon geometry will be skipped`));
+  lines.push(checkLine(id.ok ? 'ok' : 'bad', esc(id.msg)));
+  lines.push(checkLine('ok', `CRS ${esc(fi.crsName || 'EPSG:4326 (GeoJSON default)')}`));
+  if (fi.utm) {
+    const current = String(state.params.working_crs || '').trim().toUpperCase();
+    if (current === fi.utm.epsg) lines.push(checkLine('ok', `Working CRS matches the data area (${fi.utm.label})`));
+    else lines.push(checkLine('warn', `Data sits in ${fi.utm.label} (${fi.utm.epsg}), working CRS is ${esc(current || '—')}`,
+      ` <button class="mini-btn" id="btn-use-utm" type="button">Use</button>`));
+  }
+  el.innerHTML = `<div class="card">${lines.join('')}</div>`;
+  $('btn-use-utm')?.addEventListener('click', () => {
+    setParam('working_crs', fi.utm.epsg);
+    state.statusSticky = false;
+    renderFootprintInfo();
+  });
+  refreshRunButton();
+}
+
+function runBlocker() {
+  const missing = FILE_SLOTS.filter(s => !state.files[s.slot]).map(s => s.title);
+  if (missing.length) return `Missing: ${missing.join(', ')}.`;
+  const limit = uploadLimitBytes();
+  const big = FILE_SLOTS.find(s => limit && state.files[s.slot].size > limit);
+  if (big) return `${big.title} is over the server upload limit (${state.service.max_upload_mb} MB).`;
+  if (state.footprintInfo?.status === 'error') return 'The footprint file could not be read.';
+  const id = idCheck();
+  if (!id.ok) return id.msg;
+  return null;
+}
+
+function refreshRunButton() {
+  const running = Boolean(state.job || state.upload);
+  const blocker = runBlocker();
+  const btn = $('btn-run');
+  btn.disabled = running ? false : Boolean(blocker);
+  btn.className = running ? 'btn danger' : 'btn';
+  $('btn-run-label').textContent = state.upload ? 'Cancel upload' : state.job ? 'Cancel run' : 'Run pipeline';
+  btn.querySelector('use').setAttribute('href', running ? '#i-stop' : '#i-play');
+  btn.title = !running && blocker ? blocker : '';
+  if (!running && !state.statusSticky) setStatus(esc(blocker || 'Ready to run.'), false);
+}
+
+/* ======================================================================= */
+/*  Job control                                                            */
+/* ======================================================================= */
+
+function logLine(text, cls) {
+  const log = $('log');
+  log.style.display = 'block';
+  const div = document.createElement('div');
+  if (cls) div.className = cls;
+  div.textContent = text;
+  log.appendChild(div);
+  while (log.childElementCount > 300) log.removeChild(log.firstChild);
+  log.scrollTop = log.scrollHeight;
+}
+
+function setProgress(current, total, message) {
+  const bar = $('progress-bar'), fill = $('progress-fill');
+  if (total > 0) {
+    bar.classList.remove('indeterminate');
+    fill.style.width = `${Math.min(100, (current/total)*100).toFixed(1)}%`;
+    $('progress-count').textContent = `${intFmt(current)} / ${intFmt(total)}`;
+  } else {
+    bar.classList.add('indeterminate');
+    $('progress-count').textContent = '';
+  }
+  if (message) $('progress-msg').textContent = message;
+}
+
+function setQueued(position) {
+  setChip('warn', position > 0 ? `QUEUED · #${position}` : 'QUEUED');
+  setProgress(0, 0, position > 0
+    ? `Waiting for ${position} run${position > 1 ? 's' : ''} ahead to finish…`
+    : 'Waiting in the queue…');
+}
+
+function errorText(payload, status) {
+  const d = payload?.detail;
+  if (typeof d === 'string') return d;
+  if (Array.isArray(d)) return d.map(x => x.msg || JSON.stringify(x)).join('; ');
+  return `HTTP ${status}`;
+}
+
+async function startRun() {
+  const files = {...state.files}, params = collectParams();
+  const cached = state.reusableInputs;
+  let reuse = cached && cached.apiBase === state.apiBase &&
+    Object.keys(files).every(key => files[key] === cached.files[key]);
+  const requestBody = () => {
+    const body = new FormData();
+    if (reuse) body.append('source_job_id', cached.jobId);
+    else for (const [key, file] of Object.entries(files)) body.append(key, file);
+    body.append('params', JSON.stringify(params));
+    return body;
+  };
+
+  $('progress').style.display = 'block';
+  $('log').innerHTML = '';
+  $('log').style.display = 'none';
+  setProgress(0, 0, reuse ? 'Reusing uploaded input…' : 'Uploading input…');
+  setChip('', reuse ? 'REUSING INPUT' : 'UPLOADING');
+
+  let job;
+  state.upload = new AbortController();
+  refreshRunButton();
+  try {
+    let res = await fetch(`${state.apiBase}/api/jobs`, {method:'POST', body:requestBody(), signal:state.upload.signal});
+    if (reuse && res.status === 404) {
+      state.reusableInputs = null;
+      reuse = false;
+      setProgress(0, 0, 'Previous input expired. Uploading input again…');
+      setChip('', 'UPLOADING');
+      res = await fetch(`${state.apiBase}/api/jobs`, {method:'POST', body:requestBody(), signal:state.upload.signal});
+    }
+    const payload = await res.json().catch(() => ({}));
+    state.upload = null;
+    if (!res.ok) { failRun(errorText(payload, res.status), false); return; }
+    job = payload;
+    state.reusableInputs = {jobId:job.job_id, files, apiBase:state.apiBase};
+  } catch (err) {
+    const aborted = err.name === 'AbortError';
+    state.upload = null;
+    if (aborted) {
+      setStatus('Upload cancelled.', true); endRun(); setChip('', 'UPLOAD CANCELLED');
+    } else {
+      failRun(`Could not reach the ATAP service at ${state.apiBase}. ${err.message}`, true);
+    }
+    return;
+  }
+
+  state.job = job.job_id;
+  refreshRunButton();
+  logLine(reuse ? 'Reused uploaded input; only parameters were sent.' : 'Input uploaded; subsequent runs can reuse it.');
+  logLine(`Job ${job.job_id} accepted · ${job.footprint_count ?? '?'} footprints`);
+  if (job.queue_position > 0) setQueued(job.queue_position);
+  else { setChip('', 'RUNNING'); setProgress(0, job.footprint_count || 0, 'Starting…'); }
+
+  const src = new EventSource(`${state.apiBase}/api/jobs/${job.job_id}/events`);
+  state.events = src;
+
+  src.onmessage = e => {
+    let ev; try { ev = JSON.parse(e.data); } catch { return; }
+    switch (ev.type) {
+      case 'queued':     setQueued(ev.position); break;
+      case 'started':    setChip('', 'RUNNING'); setProgress(0, 0, 'Starting…'); logLine('Run started.'); break;
+      case 'progress':   setProgress(ev.current, ev.total, ev.message); break;
+      case 'log':        logLine(ev.message, /^\[(error|warn)\]/.test(ev.message) ? 'err' : ''); break;
+      case 'cancelling': setChip('warn', 'CANCELLING'); logLine('Cancel requested.'); break;
+      case 'completed':  finishRun(job.job_id, ev); break;
+      case 'cancelled':  logLine('Run cancelled. No output was written.'); setStatus('Run cancelled. No output was written.', true);
+                         endRun(); setChip('warn', 'RUN CANCELLED'); break;
+      case 'failed':     failJob(ev.error); break;
+      case 'close':      src.close(); break;
+    }
+  };
+  src.onerror = () => {
+    src.close();
+    if (state.job) { logLine('Event stream interrupted, polling for the status…', 'err'); pollOnce(job.job_id); }
+  };
+}
+
+async function pollOnce(jobId) {
+  try {
+    const res = await fetch(`${state.apiBase}/api/jobs/${jobId}`);
+    const s = await res.json();
+    if (s.status === 'completed') finishRun(jobId, {result: s.result});
+    else if (s.status === 'failed') failJob(s.error);
+    else if (s.status === 'cancelled') { setStatus('Run cancelled. No output was written.', true); endRun(); setChip('warn', 'RUN CANCELLED'); }
+    else {
+      if (s.status === 'queued') setQueued(s.queue_position);
+      setTimeout(() => pollOnce(jobId), 2000);
+    }
+  } catch { setStatus('Lost the connection to the service while the run was in progress.', true); endRun(); setChip('bad', 'CONNECTION LOST'); }
+}
+
+async function finishRun(jobId, ev) {
+  if (state.job !== jobId) return;
+  const result = ev.result || {};
+  setProgress(1, 1, 'Loading result…');
+  logLine(`Finished · ${result.num_features ?? '?'} parts from ${result.num_buildings ?? '?'} buildings` +
+          (result.num_skipped ? ` · ${result.num_skipped} skipped` : ''));
+  try {
+    const label = `Run ${new Date().toLocaleTimeString()}`;
+    await loadFromServer(jobId, label);
+    pushHistory(jobId, result);
+  } catch (err) {
+    setChip('bad', 'RESULT LOAD FAILED');
+    setStatus(esc(err.message), true);
+    logLine(err.message, 'err');
+  }
+  endRun();
+}
+
+/* Engine errors (missing DTM, no stable ID, CRS, alignment, validation)
+   arrive here with the engine's own message. */
+function failJob(error) {
+  const msg = error || 'Run failed.';
+  logLine(msg, 'err');
+  setStatus(`<b>Run failed.</b> ${esc(msg)}`, true);
+  endRun(false);
+  setChip('bad', 'RUN FAILED');
+}
+
+function failRun(message, unreachable) {
+  setStatus(`${esc(message)}${unreachable ? ' You can still open an existing result file.' : ''}`, true);
+  logLine(message, 'err');
+  endRun(false);
+  setChip('bad', unreachable ? 'SERVICE UNREACHABLE' : 'REQUEST REJECTED');
+}
+
+function endRun(hideProgress = true) {
+  if (state.events) { state.events.close(); state.events = null; }
+  state.job = null;
+  refreshRunButton();
+  if (hideProgress) setTimeout(() => { if (!state.job) $('progress').style.display = 'none'; }, 2500);
+  checkService();
+}
+
+async function cancelRun() {
+  if (!state.job) return;
+  try {
+    await fetch(`${state.apiBase}/api/jobs/${state.job}/cancel`, {method:'POST'});
+    logLine('Cancel sent. Buildings already in progress finish first; no output is written.');
+  } catch (err) { logLine(`Cancel failed: ${err.message}`, 'err'); }
+}
+
+async function loadFromServer(jobId, label) {
+  const res = await fetch(`${state.apiBase}/api/jobs/${jobId}/artifacts/output`);
+  if (res.status === 404) throw new Error('This run is no longer on the server (expired or cleaned up).');
+  if (!res.ok) throw new Error(`Could not download the result (HTTP ${res.status}).`);
+  const fc = await res.json();
+  checkCompat(fc);
+  state.activeRun = jobId;
+  applyDataset(fc, label);
+}
+
+function pushHistory(jobId, result) {
+  state.history.unshift({
+    id: jobId,
+    at: new Date().toLocaleTimeString(),
+    features: result.num_features,
+    skipped: result.num_skipped,
+    params: collectParams()
+  });
+  state.history = state.history.slice(0, 6);
+  renderHistory();
+}
+
+function renderHistory() {
+  const el = $('history');
+  if (!state.history.length) {
+    el.innerHTML = `<p class="hint" style="margin:0">No runs yet in this session.</p>`;
+    return;
+  }
+  el.innerHTML = state.history.map(h => `
+    <button class="history-item ${h.id === state.activeRun ? 'active' : ''}" data-run="${esc(h.id)}">
+      <svg class="ico"><use href="#i-clock"/></svg>
+      <span class="hi-text">
+        <b>${h.at} · ${intFmt(h.features ?? 0)} parts${h.skipped ? ` · ${intFmt(h.skipped)} skipped` : ''}</b>
+        <small>step ${h.params.height_diff_threshold_m} m · shrink ${Math.round(h.params.min_footprint_change_ratio*100)}% · groups ${h.params.max_height_classes} · holes ≤${h.params.max_fill_hole_area_m2} m²</small>
+      </span>
+    </button>`).join('');
+
+  el.querySelectorAll('[data-run]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const h = state.history.find(x => x.id === btn.dataset.run);
+      try { await loadFromServer(btn.dataset.run, `Run ${h.at}`); renderHistory(); }
+      catch (err) { setStatus(esc(err.message), true); }
+    });
+  });
+}
+
+/* ======================================================================= */
+/*  Local file mode                                                        */
+/* ======================================================================= */
+
+async function openLocalResult(file) {
+  try {
+    const fc = JSON.parse(await file.text());
+    checkCompat(fc);
+    state.activeRun = null;
+    applyDataset(fc, file.name);
+    renderHistory();
+  } catch (err) {
+    setChip('bad', 'COULD NOT OPEN FILE');
+    setStatus(esc(err.message), true);
+  }
+}
+
+/* ======================================================================= */
+/*  Service                                                                */
+/* ======================================================================= */
+
+async function checkService() {
+  const el = $('api-state');
+  el.textContent = 'Checking the service…';
+  try {
+    const res = await fetch(`${state.apiBase}/api/health`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const h = await res.json();
+    state.service = h;
+    const busy = `${h.running_jobs ?? 0}/${h.max_concurrent ?? 1} running` +
+                 (h.queued_jobs ? ` · ${h.queued_jobs} queued` : '');
+    el.innerHTML = `Service reachable${h.version ? ` · ATAP <b>${esc(h.version)}</b>` : ''} · ${busy}` +
+                   (h.max_upload_mb ? ` · upload limit ${h.max_upload_mb} MB` : '');
+  } catch {
+    state.service = null;
+    el.innerHTML = `No service at <b>${esc(state.apiBase)}</b>. Start it with <code>atap serve</code>, or open a result file instead.`;
+  }
+  FILE_SLOTS.forEach(renderSlot);
+  updateSourceLine();
+}
+
+/* ======================================================================= */
+/*  Wiring                                                                 */
+/* ======================================================================= */
+
+function showTab(which) {
+  const isRun = which === 'run';
+  $('tab-btn-run').classList.toggle('active', isRun);
+  $('tab-btn-view').classList.toggle('active', !isRun);
+  $('tab-run').classList.toggle('active', isRun);
+  $('tab-view').classList.toggle('active', !isRun);
+  $('tab-btn-run').setAttribute('aria-pressed', String(isRun));
+  $('tab-btn-view').setAttribute('aria-pressed', String(!isRun));
+  document.querySelector('.panel-body').scrollTop = 0;
+}
+
+$('tab-btn-run').addEventListener('click', () => showTab('run'));
+$('tab-btn-view').addEventListener('click', () => showTab('view'));
+
+$('api-base').value = state.apiBase;
+$('btn-settings').addEventListener('click', () => {
+  const box = $('settings-box');
+  const open = box.style.display === 'none';
+  box.style.display = open ? 'block' : 'none';
+  if (open) checkService();
+});
+$('api-base').addEventListener('change', e => {
+  state.apiBase = e.target.value.trim().replace(/\/+$/, '');
+  checkService();
+});
+
+$('btn-reset-params').addEventListener('click', resetParams);
+$('btn-run').addEventListener('click', () => {
+  if (state.upload) state.upload.abort();
+  else if (state.job) cancelRun();
+  else startRun();
+});
+$('btn-open').addEventListener('click', () => $('file-result').click());
+$('file-result').addEventListener('change', e => {
+  if (e.target.files[0]) openLocalResult(e.target.files[0]);
+  e.target.value = '';
+});
+
+$('mode-part').addEventListener('click', () => {
+  state.hoverMode = 'part';
+  $('mode-part').classList.add('active'); $('mode-building').classList.remove('active');
+  $('mode-part').setAttribute('aria-pressed', 'true');
+  $('mode-building').setAttribute('aria-pressed', 'false');
+  state.pinnedObjectId = null;
+  state.treeHoveredPartId = null;
+  renderHierarchy();
+  clearHover();
+});
+$('mode-building').addEventListener('click', () => {
+  state.hoverMode = 'building';
+  $('mode-building').classList.add('active'); $('mode-part').classList.remove('active');
+  $('mode-building').setAttribute('aria-pressed', 'true');
+  $('mode-part').setAttribute('aria-pressed', 'false');
+  renderHierarchy();
+  clearHover();
+});
+$('decomposition-toggle').addEventListener('change', e => { state.decomposition = e.target.checked; updateLayers(); });
+$('ground-toggle').addEventListener('change', e => {
+  state.groundElevation = e.target.checked;
+  $('ground-hint').textContent = state.groundElevation
+    ? 'On · world elevation: raised by ground height, floats over a flat basemap'
+    : 'Off · local plane: parts start at 0 m on the flat basemap';
+  updateLayers();
+});
+$('explode-toggle').addEventListener('change', e => { state.explode = e.target.checked; updateLayers(); });
+$('explode-gap').addEventListener('input', e => {
+  state.explodeGap = Number(e.target.value);
+  $('explode-value').textContent = `${state.explodeGap.toFixed(1)} m`;
+  if (state.explode) updateLayers();
+});
+
+$('btn-fit').addEventListener('click', () => fitBounds(state.bounds));
+$('btn-reset-view').addEventListener('click', () => {
+  deckgl.setProps({initialViewState: {...DEFAULT_VIEW, transitionDuration: 650}});
+});
+
+/* Drop a result file anywhere on the map. */
+['dragover','drop'].forEach(ev => window.addEventListener(ev, e => e.preventDefault()));
+$('map').addEventListener('drop', e => {
+  const f = e.dataTransfer?.files?.[0];
+  if (f && /\.(geojson|json)$/i.test(f.name)) openLocalResult(f);
+});
+
+/* ------------------------------------------------------------- utilities */
+function row(label, value) {
+  return `<div class="tooltip-row"><span>${esc(label)}</span><strong>${esc(String(value ?? '—'))}</strong></div>`;
+}
+function rowc(label, value) {
+  return `<div class="row"><span>${esc(label)}</span><strong title="${esc(String(value ?? ''))}">${esc(String(value ?? '—'))}</strong></div>`;
+}
+function esc(v) {
+  return String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;')
+    .replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+}
+function num(v, d = 2) { return v != null && Number.isFinite(Number(v)) ? Number(v).toFixed(d) : '—'; }
+function n1(v)  { return num(v, 1); }
+function pct(v) { return v != null && Number.isFinite(Number(v)) ? `${(Number(v)*100).toFixed(1)}%` : '—'; }
+function intFmt(v) { return v != null && Number.isFinite(Number(v)) ? Math.round(Number(v)).toLocaleString() : '—'; }
+function shortPart(id) { return String(id).split('-').slice(-1)[0]; }
+
+/* ------------------------------------------------------------------ init */
+mountParams();
+mountFileSlots();
+updateLayers();
+updateSourceLine();
+checkService();
+</script>
+</body>
+</html>
