@@ -30,9 +30,16 @@ def main():
     serialized = json.dumps(bench, sort_keys=True, separators=(",", ":"),
                             ensure_ascii=False, allow_nan=False).encode("utf-8")
     digest = hashlib.sha256(serialized).hexdigest()
-    expected = (golden / "bench_default.sha256").read_text().split()[0]
-    if digest != expected:
-        raise SystemExit(f"NOT EQUIVALENT: benchmark SHA-256 {digest} != {expected}")
+    expected = {
+        line.split()[0]
+        for line in (golden / "bench_default.sha256").read_text().splitlines()
+        if line.strip()
+    }
+    if digest not in expected:
+        raise SystemExit(
+            f"NOT EQUIVALENT: benchmark SHA-256 {digest} not in "
+            f"{', '.join(sorted(expected))}"
+        )
     print(f"bench_default EQUIVALENT: SHA-256 {digest}")
     old, new = read(golden / "summary.json"), read(candidate / "summary.json")
     for summary in (old, new):

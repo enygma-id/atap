@@ -58,6 +58,8 @@ All notable public changes to ATAP should be documented here.
 
 - froze three complete synthetic golden outputs and a benchmark summary with
   a full-output canonical SHA-256, reproduction commands, and runtime provenance;
+- recorded exact Windows and Linux benchmark hashes after verifying their
+  platform-specific GEOS orientation and coordinate variants;
 - added golden verification and Windows/Linux baseline CI.
 
 - imported the reference elevation engine 0.2.0 / profile 0.6, playground,

@@ -39,9 +39,10 @@ python tests/golden/verify.py .cache/baseline
 ```
 
 Raster inputs and the full benchmark output stay local and are not committed.
-The verifier invokes `tools/compare_outputs.py` for the three
-complete goldens, checks the benchmark summary and full-output hash, and
-compares the four run summaries excluding `seconds_workers_1` only.
+The verifier invokes `tools/compare_outputs.py` for the three complete
+goldens, checks the benchmark summary and one of the recorded full-output
+hashes, and compares the four run summaries excluding
+`seconds_workers_1` only.
 
 Canonicalization removes only top-level `process` and
 `processing.execution`. It serializes the remaining object with Python
@@ -52,6 +53,21 @@ Array order and all other values remain significant. The filename in the
 
 Timings and process metadata vary by run. Do not regenerate goldens just to
 accept a discrepancy: investigate it and document intentional output changes.
+## Cross-platform benchmark hashes
+
+The benchmark has two exact canonical hashes. Windows produces
+`cc8e8795e3b29bb5d42690fe4137045e25e60014105d78187ce8efd63b43b5e9`;
+Linux produces
+`375a82250258c8add3e89a776da25c7ca2641cac7269bb42378fca8c53fa22cb`.
+The Linux hash was reproduced on Ubuntu with Python 3.10 and 3.12 and with
+NumPy 1.x and 2.x.
+
+The platform variants have identical summaries. Their differences are limited
+to orientation ties for nearly square minimum rotated rectangles, one rounded
+length, and a few GEOS-generated coordinates at output precision. The three
+smaller complete golden files remain exactly equivalent on both platforms.
+Both benchmark hashes stay explicit so an uninvestigated third result still
+fails verification.
 
 ## Profile 0.6 English metadata migration
 
