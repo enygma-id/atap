@@ -56,9 +56,9 @@ accept a discrepancy: investigate it and document intentional output changes.
 ## Cross-platform benchmark hashes
 
 The benchmark has two exact canonical hashes. Windows produces
-`cc8e8795e3b29bb5d42690fe4137045e25e60014105d78187ce8efd63b43b5e9`;
+`b9bcb9e14a480f36bc359336af71aa79f5ecc790c6edc08a9660bb1f578732f8`;
 Linux produces
-`375a82250258c8add3e89a776da25c7ca2641cac7269bb42378fca8c53fa22cb`.
+`dd1ddd25b522610b960308e65c56498a2bc4e5ddce26174dd1ab8a92b9fca16b`.
 The Linux hash was reproduced on Ubuntu with Python 3.10 and 3.12 and with
 NumPy 1.x and 2.x.
 
@@ -91,7 +91,7 @@ values, summaries, and parameters remain identical. Restoring only the old bench
 
 An omitted `keep_properties` now resolves to every property key present in the
 footprint dataset; an explicit empty list still copies none. Synthetic inputs
-contain `NAMOBJ` and `id`, so every case records `["NAMOBJ", "id"]` instead of
+contain `name` and `id`, so every case records `["id", "name"]` instead of
 the obsolete four-name list. All features, geometry, hierarchy, vertical values,
 summaries, and other parameters remain identical. Restoring only that old list
 reproduces the previous benchmark hash. The corrected benchmark canonical hash
@@ -102,5 +102,17 @@ is `9ff5c7fefe3780de87c0c280ecabb9dbd23d7a33e84c5f52c05ba6972ee2bcfd`.
 Profile 0.6 now records ATAP attribution, source URL, generator software license,
 complete non-path resolved configuration, and requested worker count. The three
 complete goldens and benchmark canonical hash were updated for these metadata
-fields only. Features and summaries are unchanged. Benchmark SHA-256:
-`cc8e8795e3b29bb5d42690fe4137045e25e60014105d78187ce8efd63b43b5e9`.
+fields only. Features and summaries were unchanged at that migration.
+Current Windows benchmark SHA-256:
+`b9bcb9e14a480f36bc359336af71aa79f5ecc790c6edc08a9660bb1f578732f8`.
+
+## Synthetic source-name normalization
+
+Synthetic footprint properties use `id` and `name`. The reference generator,
+three complete goldens, and both benchmark hashes were updated together.
+The only output changes are the copied source-name key and the sorted effective
+`keep_properties` list, now `["id", "name"]`. Comparison against each platform's
+previous four outputs proves that geometry, part identifiers, hierarchy,
+heights, areas, volumes, raster evidence, and summaries remain identical.
+The engine still accepts arbitrary source-property keys; this is a reference
+fixture change, not a required input field.
