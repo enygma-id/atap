@@ -61,3 +61,11 @@ def test_accessibility_basics_and_packaged_source():
         assert tag and "aria-label=" in tag.group(0)
     assert 'aria-label="$' + '{esc(def.label)}"' in source
     assert not Path("prototype").exists()
+
+
+def test_level_palette_has_six_colors_and_matching_legend():
+    source = HTML.read_text(encoding="utf-8")
+    match = re.search(r"const LEVEL_COLORS = \[(.*?)\];", source)
+    assert match and match.group(1).count("[") == 6
+    assert all(f"Level {level}" in source for level in range(6))
+    assert "LEVEL_COLORS.length - 1" in source

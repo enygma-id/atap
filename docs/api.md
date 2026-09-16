@@ -51,3 +51,10 @@ name remains stable across requests.
 `GET /api/jobs/{id}/artifacts/log` returns `run.log`. Unknown or expired artifacts
 return 404. The server stores fixed `output.geojson` and `run.log` filenames
 inside its UUID job directories; clients cannot choose server paths.
+
+The downloaded GeoJSON embeds configuration, ATAP attribution, timing, and
+result statistics. See [Output metadata](output-metadata.md).
+
+## CLI JSONL events
+
+`atap run --events jsonl` writes one JSON object per stdout line. Event `type` values are `progress`, `log`, `result`, and `error`. Progress includes completed/total counts and a message; log includes a message; result includes output counts and path; error includes a stable category and message.

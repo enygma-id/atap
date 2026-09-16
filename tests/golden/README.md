@@ -80,3 +80,11 @@ the obsolete four-name list. All features, geometry, hierarchy, vertical values,
 summaries, and other parameters remain identical. Restoring only that old list
 reproduces the previous benchmark hash. The corrected benchmark canonical hash
 is `9ff5c7fefe3780de87c0c280ecabb9dbd23d7a33e84c5f52c05ba6972ee2bcfd`.
+
+## Pre-release provenance metadata
+
+Profile 0.6 now records ATAP attribution, source URL, generator software license,
+complete non-path resolved configuration, and requested worker count. The three
+complete goldens and benchmark canonical hash were updated for these metadata
+fields only. Features and summaries are unchanged. Benchmark SHA-256:
+`cc8e8795e3b29bb5d42690fe4137045e25e60014105d78187ce8efd63b43b5e9`.

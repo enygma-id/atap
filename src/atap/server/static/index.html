@@ -38,6 +38,8 @@
     --lvl1:#4daf4a;
     --lvl2:#ff7f00;
     --lvl3:#984ea3;
+    --lvl4:#e41a1c;
+    --lvl5:#a65628;
     --radius:12px;
   }
   html,body,#map{width:100%;height:100%;margin:0}
@@ -448,7 +450,9 @@
   <div class="legend-item"><span class="swatch" style="background:var(--lvl0)"></span>Level 0 · authoritative footprint</div>
   <div class="legend-item"><span class="swatch" style="background:var(--lvl1)"></span>Level 1</div>
   <div class="legend-item"><span class="swatch" style="background:var(--lvl2)"></span>Level 2</div>
-  <div class="legend-item"><span class="swatch" style="background:var(--lvl3)"></span>Level 3+</div>
+  <div class="legend-item"><span class="swatch" style="background:var(--lvl3)"></span>Level 3</div>
+  <div class="legend-item"><span class="swatch" style="background:var(--lvl4)"></span>Level 4</div>
+  <div class="legend-item"><span class="swatch" style="background:var(--lvl5)"></span>Level 5+</div>
 </div>
 
 <div class="attribution" id="attribution">Basemap © Badan Informasi Geospasial (BIG)</div>
@@ -680,7 +684,7 @@ function renderData() {
   return data;
 }
 
-const LEVEL_COLORS = [[55,126,184],[77,175,74],[255,127,0],[152,78,163]];
+const LEVEL_COLORS = [[55,126,184],[77,175,74],[255,127,0],[152,78,163],[228,26,28],[166,86,40]];
 const levelColor = lvl => LEVEL_COLORS[Math.min(lvl || 0, LEVEL_COLORS.length - 1)];
 
 function isHighlighted(f) {

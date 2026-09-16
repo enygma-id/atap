@@ -4,6 +4,8 @@ All notable public changes to ATAP should be documented here.
 
 ## Unreleased
 
+## 0.2.0 - 2026-09-16
+
 ### Changed (scientific)
 
 - copy all footprint properties when `keep_properties` is omitted, replacing
@@ -15,6 +17,8 @@ All notable public changes to ATAP should be documented here.
   geometry, hierarchy, heights, areas, volumes, and part identifiers are unchanged.
 
 ### Local server
+
+- expanded the level-color palette and legend to six colors (levels 0–5+);
 
 - use button groups for terrain choices, a footprint-property ID dropdown,
   and per-property copy toggles that start active for all detected attributes;
@@ -33,6 +37,9 @@ All notable public changes to ATAP should be documented here.
 - added HTTP, security, TTL, subprocess and browser integration tests.
 
 ### Packaged engine and CLI
+
+- embedded ATAP attribution and complete non-path configuration provenance in
+  output GeoJSON, retaining canonical result statistics and timing metadata;
 
 - capped automatic execution at four workers on every platform and manual
   selection at eight, kept raster cache within its total budget, and added one

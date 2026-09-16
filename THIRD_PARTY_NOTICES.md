@@ -18,8 +18,7 @@ The current Python implementation directly imports or materially relies on:
 - Hatchling (MIT), used to build distributions;
 - FastAPI (MIT), Uvicorn (BSD-3-Clause), and python-multipart (Apache-2.0),
   provided by the optional server extra;
-- pytest (MIT), pytest-cov (MIT), Ruff (MIT), Playwright (Apache-2.0), and
-  HTTPX (BSD-3-Clause),
+- pytest (MIT), pytest-cov (MIT), Ruff (MIT), Playwright (Apache-2.0), HTTPX (BSD-3-Clause), and jsonschema (MIT),
   provided by the development extra;
 - deck.gl (MIT), distributed with the reference playground;
 - native geospatial libraries used through that stack, including GDAL, PROJ,

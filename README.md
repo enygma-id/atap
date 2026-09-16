@@ -98,6 +98,31 @@ MapLibre GL, CesiumJS, and other WebGL/WebGPU-based systems.
 
 See [`docs/gis-native-principles.md`](./docs/gis-native-principles.md).
 
+## Quick start
+
+Python 3.10 or newer is required. End users can install the engine and local playground with pip:
+
+```sh
+python -m venv .venv
+# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+# Linux/macOS: source .venv/bin/activate
+python -m pip install ".[server]"
+python tools/make_synthetic.py --out .cache/syn --dataset stepped
+atap run --input-geojson .cache/syn/stepped/footprints.geojson --dsm .cache/syn/stepped/dsm.tif --dtm .cache/syn/stepped/dtm.tif --output .cache/stepped.geojson --id-field id
+atap serve
+```
+
+Contributors can use the same commands on Windows, Linux, and macOS without activating a shell:
+
+```sh
+uv sync --extra dev
+uv run python tools/make_synthetic.py --out .cache/syn --dataset stepped
+uv run pytest
+uv run ruff check .
+uv run atap serve
+```
+
+`uv` creates and uses `.venv`. Shell activation is optional. See the [CLI](docs/cli.md), [playground](docs/playground.md), [method](docs/method.md), and [output schema](docs/output-schema.md).
 ## Editions
 
 ### Community Edition

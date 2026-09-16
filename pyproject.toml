@@ -20,7 +20,7 @@ dependencies = [
 [project.optional-dependencies]
 formats = ["geopandas>=0.14"]
 server = ["fastapi", "uvicorn", "python-multipart"]
-dev = ["pytest", "pytest-cov", "ruff", "playwright", "httpx"]
+dev = ["pytest", "pytest-cov", "ruff", "playwright", "httpx", "jsonschema", "fastapi", "uvicorn", "python-multipart"]
 
 [project.scripts]
 atap = "atap.cli:main"
@@ -39,3 +39,10 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+
+[tool.hatch.build]
+exclude = ["/.cache", "/.venv", "/dist"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"schema/atap-elevation-0.6.schema.json" = "atap/schema/atap-elevation-0.6.schema.json"

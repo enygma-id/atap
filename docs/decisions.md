@@ -341,3 +341,18 @@ property default inherited from the prototype.
 - This intentionally changes source-property retention and parameter metadata.
   Geometry, hierarchy, CRS, vertical values, numerical algorithms, and profile
   schema remain unchanged.
+
+## ADR-019 Complete output provenance
+
+**Status:** Accepted (pre-release v0.2.0).
+
+- Attribute output to ATAP in the existing `atap` member with generator name,
+  source URL, and software license. The license field describes the software,
+  not generated data.
+- Record all resolved non-path configuration across `processing.parameters`,
+  CRS fields, and execution metadata. Include requested workers alongside the
+  actual count so sequential fallback remains auditable.
+- Keep canonical result statistics in `summary` and timing in `process`.
+  Do not duplicate them or include absolute paths or renderer state.
+- These are additive metadata fields in profile 0.6. Geometry, hierarchy,
+  vertical semantics, and numerical output are unaffected.

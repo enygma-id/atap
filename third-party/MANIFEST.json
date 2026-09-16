@@ -17,7 +17,8 @@
     "ruff": "0.16.7",
     "playwright": "1.62.0",
     "httpx": "0.28.1",
-    "deck.gl": "9.3.11"
+    "deck.gl": "9.3.11",
+    "jsonschema": "4.26.0"
   },
   "note": "Captured versions are provenance of license-file sources, not dependency pins. GDAL license material is stored in a separate gdal/ directory to avoid case-insensitive filename collisions on macOS/Windows.",
   "files": [
@@ -34,6 +35,7 @@
     "ruff/LICENSE",
     "playwright/LICENSE",
     "httpx/LICENSE.md",
+    "jsonschema/COPYING",
     "deck.gl/LICENSE",
     "numpy/LICENSE.txt",
     "pandas/LICENSE",
