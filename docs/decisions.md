@@ -204,15 +204,20 @@ Measured speed-up: 12× (20k px) to 51× (4M px).
 - Buildings run in a `ProcessPoolExecutor` with the **spawn** context on
   every OS (same behaviour as Windows; workers do not inherit GDAL handles).
   Each worker opens its own DSM/DTM in an initializer.
-- `workers = 0` means auto (cores − 1), but auto uses 1 process for fewer
-  than 40 buildings, because spawning a worker costs about 1 s.
+- `workers = 0` means automatic selection of up to four processes on every
+  platform, limited by the logical CPU and task counts. Explicit positive
+  values are capped at eight processes.
 - Results are reassembled in input order, so output is identical for any
   worker count.
 - Buildings are processed in DSM-tile row-major order for GDAL block-cache
   reuse.
-- `gdal_cache_mb` is the total for the job, split across workers.
+- `gdal_cache_mb` is the total for the job, split across workers without a
+  per-worker minimum that could exceed the configured budget.
   **rasterio passes `GDAL_CACHEMAX` to `GDALSetCacheMax64` in bytes**, so the
   value must be `MB × 1024 × 1024`. Passing 512 once made reads 4× slower.
+- If an automatically selected process pool stops unexpectedly, the job logs
+  a warning and retries once in a single process. Explicit worker counts fail
+  with guidance to retry with one worker.
 - Cancellation is checked between buildings and about every 0.5 s in
   parallel mode; running batches finish first.
 - Measured on the `bench` dataset (1 core): 8.6 s → 3.2 s with ADR-009 and

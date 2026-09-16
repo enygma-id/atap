@@ -602,8 +602,8 @@ const PARAMS = [
    type:'range', min:0, max:6, step:1, def:2, unit:'dp'},
 
   {group:'exec', key:'workers', label:'Parallel workers',
-   hint:'Buildings processed at the same time. 0 = automatic (all cores but one). 1 = keep the computer light.',
-   type:'number', min:0, max:64, step:1, def:0},
+   hint:'Buildings processed at the same time. 0 = automatic (up to 4 on every platform). Manual maximum: 8.',
+   type:'number', min:0, max:8, step:1, def:0},
   {group:'exec', key:'gdal_cache_mb', label:'Raster cache',
    hint:'Memory for re-using raster tiles just read. Raise it for very large DSMs if RAM allows.',
    type:'number', min:64, max:16384, step:64, def:512, unit:'MB'}

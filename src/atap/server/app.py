@@ -95,7 +95,7 @@ def _validate_params(raw: str) -> dict[str, Any]:
         "max_height_classes": (1, 32),
         "morph_closing_iters": (0, 100),
         "round_digits": (0, 15),
-        "workers": (0, 256),
+        "workers": (0, 8),
         "gdal_cache_mb": (1, 65536),
     }
     ratio_fields = {

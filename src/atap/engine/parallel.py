@@ -15,19 +15,23 @@ from .raster import (
     read_building_window,
 )
 
-# Auto mode avoids a pool for small datasets because importing geospatial
-# libraries in a spawned worker costs about one second.
-AUTO_PARALLEL_MIN_BUILDINGS = 40
+# Automatic mode targets four workers on every platform. Manual selection is
+# capped at eight to bound spawned process, raster-handle, and memory pressure.
+AUTO_WORKERS = 4
+MAX_WORKERS = 8
 
 
 def resolve_workers(requested: int, n_tasks: int) -> int:
     if requested and requested > 0:
-        w = int(requested)
+        w = min(MAX_WORKERS, int(requested))
     else:
-        if n_tasks < AUTO_PARALLEL_MIN_BUILDINGS:
-            return 1
-        w = max(1, (os.cpu_count() or 1) - 1)
+        w = min(AUTO_WORKERS, os.cpu_count() or 1)
     return max(1, min(w, n_tasks))
+
+
+def cache_per_worker(total_mb: int, n_workers: int) -> int:
+    """Split the configured job cache without exceeding its total budget."""
+    return max(1, int(total_mb) // max(1, int(n_workers)))
 
 
 def spatial_order(records, grid: AnalysisGrid) -> list[int]:

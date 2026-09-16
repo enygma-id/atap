@@ -12,6 +12,7 @@ from shapely.geometry import Polygon
 from atap import Config
 from atap.engine.height import kmeans_1d
 from atap.engine.output import atomic_write_geojson
+from atap.engine.parallel import cache_per_worker, resolve_workers
 from atap.engine.polygon import fill_small_holes, regularize_polygon
 from atap.engine.raster import gdal_cache_env
 
@@ -60,6 +61,20 @@ def test_atomic_writer_removes_temporary_file_on_replace_failure(tmp_path: Path,
 def test_gdal_cache_is_configured_in_bytes():
     env = gdal_cache_env(64)
     assert env.options["GDAL_CACHEMAX"] == 64 * 1024 * 1024
+
+
+def test_auto_workers_are_capped_but_explicit_workers_are_honoured(monkeypatch):
+    monkeypatch.setattr("atap.engine.parallel.os.cpu_count", lambda: 24)
+    assert resolve_workers(0, 39) == 4
+    assert resolve_workers(0, 100) == 4
+    assert resolve_workers(8, 100) == 8
+    assert resolve_workers(12, 100) == 8
+
+
+def test_worker_cache_stays_within_job_budget():
+    assert cache_per_worker(512, 4) == 128
+    assert cache_per_worker(512, 23) == 22
+    assert cache_per_worker(1, 4) == 1
 
 
 def test_regularization_preserves_large_hole():

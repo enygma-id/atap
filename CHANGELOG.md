@@ -34,6 +34,10 @@ All notable public changes to ATAP should be documented here.
 
 ### Packaged engine and CLI
 
+- capped automatic execution at four workers on every platform and manual
+  selection at eight, kept raster cache within its total budget, and added one
+  sequential retry when an automatically selected pool stops unexpectedly;
+
 - added the installable `atap` Python package and public API;
 - added `atap run`, `atap validate`, version output, JSONL events, parameter
   files, cancellation polling, stable exit codes, and raster-driver restriction;

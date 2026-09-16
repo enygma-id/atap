@@ -2,6 +2,7 @@
 """Core acceptance tests for terrain-aware hierarchical output."""
 
 import json
+from concurrent.futures.process import BrokenProcessPool
 from pathlib import Path
 
 import pytest
@@ -118,3 +119,36 @@ def test_default_copies_all_source_properties_and_empty_list_copies_none(
     none_doc = json.loads(none_output.read_text(encoding="utf-8"))
     assert none_doc["processing"]["parameters"]["keep_properties"] == []
     assert all("custom_text" not in feature["properties"] for feature in none_doc["features"])
+
+
+def test_auto_parallel_failure_retries_in_single_process(
+    synthetic: Path, tmp_path: Path, monkeypatch,
+):
+    from atap.engine import pipeline
+
+    class BrokenExecutor:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def submit(self, *args, **kwargs):
+            raise BrokenProcessPool("simulated worker exit")
+
+        def shutdown(self, *args, **kwargs):
+            pass
+
+    output = tmp_path / "fallback.geojson"
+    logs = []
+    monkeypatch.setattr(pipeline, "resolve_workers", lambda requested, tasks: 2)
+    monkeypatch.setattr(pipeline, "ProcessPoolExecutor", BrokenExecutor)
+    result = pipeline.run_elevation(
+        str(synthetic / "stepped" / "footprints.geojson"),
+        str(synthetic / "stepped" / "dsm.tif"),
+        str(synthetic / "stepped" / "dtm.tif"),
+        str(output),
+        id_field="id",
+        workers=0,
+        log_cb=logs.append,
+    )
+    assert result["cancelled"] is False
+    assert output.exists()
+    assert any("retrying the job in a single process" in line for line in logs)

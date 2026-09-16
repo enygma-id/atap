@@ -36,8 +36,10 @@ Building IDs automatically come from `properties.id`. Use `--id-field FIELD` to 
 | `--round-digits` | `2` |
 
 Execution options do not change scientific output. `--workers` defaults to
-automatic selection and `--gdal-cache-mb` defaults to 512. `--params-json`
-loads run options from an object; explicit flags take precedence.
+automatic selection of up to four workers on every platform. Explicit values
+are capped at eight workers. An automatically selected pool that stops unexpectedly retries once in a single
+process. `--gdal-cache-mb` defaults to 512 and is the total across workers.
+`--params-json` loads run options from an object; explicit flags take precedence.
 `--cancel-file PATH` stops when the file appears. Use
 `--raster-drivers GTiff` for untrusted raster uploads.
 

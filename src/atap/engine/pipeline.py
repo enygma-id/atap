@@ -32,6 +32,7 @@ from .output import atomic_write_geojson, build_feature_collection
 from .parallel import (
     _worker_chunk,
     _worker_init,
+    cache_per_worker,
     process_building,
     resolve_workers,
     spatial_order,
@@ -189,24 +190,29 @@ def run_elevation(
         results: dict[int, dict] = {}
         cancelled = False
 
-        if n_workers == 1:
+        def run_sequential() -> bool:
+            results.clear()
             _log(f"[info] Single-process execution; GDAL cache {cfg.gdal_cache_mb} MB.")
             with gdal_cache_env(cfg.gdal_cache_mb):
                 for done, (i, oid, geom, props) in enumerate(items, 1):
                     if _cancelled():
-                        cancelled = True
-                        break
+                        return True
                     _prog(done, n_parcels, f"Processing building {done}/{n_parcels}")
                     results[i] = process_building(oid, geom, props, grid, cfg, pad, keep)
+            return False
+
+        if n_workers == 1:
+            cancelled = run_sequential()
         else:
             chunk_size = max(1, min(16, math.ceil(n_parcels / (n_workers * 8))))
             chunks = [items[k:k + chunk_size] for k in range(0, len(items), chunk_size)]
-            cache_per_worker = max(64, int(cfg.gdal_cache_mb) // n_workers)
+            worker_cache_mb = cache_per_worker(cfg.gdal_cache_mb, n_workers)
             _log(f"[info] Parallel execution: {n_workers} workers, {len(chunks)} batches "
-                 f"of {chunk_size} buildings; GDAL cache {cache_per_worker} MB/worker.")
+                 f"of {chunk_size} buildings; GDAL cache {worker_cache_mb} MB/worker.")
             ex = ProcessPoolExecutor(max_workers=n_workers, initializer=_worker_init,
-                                     initargs=(cfg, cache_per_worker),
+                                     initargs=(cfg, worker_cache_mb),
                                      mp_context=mp.get_context("spawn"))
+            pool_broken = None
             try:
                 pending = {ex.submit(_worker_chunk, c) for c in chunks}
                 _prog(0, n_parcels, f"Processing building 0/{n_parcels}")
@@ -225,11 +231,23 @@ def run_elevation(
                             f.cancel()
                         break
             except BrokenProcessPool as e:
-                raise AtapError(f"Parallel worker stopped unexpectedly: {e}") from e
+                pool_broken = e
             except RuntimeError as e:
                 raise AtapError(f"Building processing failed: {e}") from e
             finally:
                 ex.shutdown(wait=True, cancel_futures=True)
+            if pool_broken is not None:
+                if cfg.workers != 0:
+                    raise AtapError(
+                        "Parallel worker stopped unexpectedly. Retry with --workers 1; "
+                        "the worker may have exhausted memory or crashed in a native "
+                        "geospatial library."
+                    ) from pool_broken
+                _log("[warn] An automatic parallel worker stopped unexpectedly; "
+                     "retrying the job in a single process.")
+                n_workers = 1
+                chunk_size = None
+                cancelled = run_sequential()
 
         if cancelled:
             _log("[info] Cancelled by user; output was not written.")

@@ -80,7 +80,7 @@ class Config:
     # Source properties copied to every generated part. None selects every key.
     keep_properties: list[str] | None = None
 
-    # Execution resources. Zero workers selects cores minus one; one is sequential.
+    # Execution resources. Zero workers selects up to four processes; manual selection is capped at eight.
     workers: int = 0
     # Total GDAL block cache in MB, divided across workers.
     gdal_cache_mb: int = 512
