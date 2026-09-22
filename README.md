@@ -17,11 +17,11 @@ semantics, instead of requiring an explicit mesh or BIM object as the primary
 representation.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/atap-overview-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/atap-overview-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/atap-banner-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/atap-banner-light.png">
   <img
-    src="docs/assets/atap-overview-light.png"
-    alt="ATAP overview showing terrain-aware architectural polygonization and hierarchical building-mass decomposition"
+    src="docs/assets/atap-banner-light.png"
+    alt="ATAP: GIS-native LoD 1.3 and hierarchical decomposition"
     width="100%">
 </picture>
 
