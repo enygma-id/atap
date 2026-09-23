@@ -24,6 +24,8 @@ dist/
 
 # Large/local geospatial data
 *.tif
+# Except samples/atap-sample-area-01/data/
+!samples/atap-sample-area-01/data/*.tif
 *.tiff
 *.las
 *.laz
