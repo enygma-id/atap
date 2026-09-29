@@ -132,6 +132,25 @@ uv run atap serve
 ```
 
 `uv` creates and uses `.venv`. Shell activation is optional. See the [CLI](docs/cli.md), [playground](docs/playground.md), [method](docs/method.md), and [output schema](docs/output-schema.md).
+
+## Sample Dataset
+
+ATAP includes a ready-to-use sample dataset for reproducible research, testing, and demonstration.
+
+The sample contains:
+
+- DSM
+- DTM
+- manually delineated building footprints created by Enygma
+
+The sample dataset is available at:
+
+[`samples/atap-sample-area-01/`](samples/atap-sample-area-01/)
+
+The sample directory includes its own documentation, attribution information, SHA-256 integrity manifest, and data license.
+
+The sample data are licensed separately from the ATAP software under **Creative Commons Attribution 4.0 International (CC BY 4.0)**.
+
 ## Editions
 
 ### Community Edition
