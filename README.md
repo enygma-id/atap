@@ -147,6 +147,9 @@ The sample dataset is available at:
 
 [`samples/atap-sample-area-01/`](samples/atap-sample-area-01/)
 
+Explore a static result generated from this dataset in the interactive
+[ATAP output preview](https://atap.enygma.id/).
+
 The sample directory includes its own documentation, attribution information, SHA-256 integrity manifest, and data license.
 
 The sample data are licensed separately from the ATAP software under **Creative Commons Attribution 4.0 International (CC BY 4.0)**.
