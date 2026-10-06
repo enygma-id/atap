@@ -5,8 +5,8 @@ Synthetic reference datasets for ATAP elevation (no real/client data).
     python make_synthetic.py --out DIR [--dataset stepped|courtyard|bench|all]
 
 Each dataset directory gets: dsm.tif, dtm.tif, footprints.geojson
-(properties.id) and footprints_fid.geojson (the same properties.id plus
-ignored top-level Feature identifiers).
+(properties.id and properties.name), and footprints_fid.geojson (the same
+properties plus ignored top-level Feature identifiers).
 
 stepped   300x300 m, DSM 0.1 m EPSG:32750, DTM ~1 m EPSG:4326 (sloped).
           B1 3-tier tower (12/30/45 m), B2 podium + ring with 16x16 m
@@ -72,7 +72,7 @@ def write_dtm_4326(path, extent_m, ground):
 
 def write_footprints(out, feats):
     fc = {"type": "FeatureCollection", "features": [
-        {"type": "Feature", "properties": {"id": k, "NAMOBJ": f"Gedung {k}"}, "geometry": g} for k, g in feats]}
+        {"type": "Feature", "properties": {"id": k, "name": f"Gedung {k}"}, "geometry": g} for k, g in feats]}
     json.dump(fc, open(os.path.join(out, "footprints.geojson"), "w"))
     for f in fc["features"]:
         f["id"] = f["properties"]["id"]

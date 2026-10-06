@@ -4,6 +4,11 @@ All notable public changes to ATAP should be documented here.
 
 ## Unreleased
 
+### Changed
+
+- standardized the synthetic reference building-name property as `name`;
+- added the public interactive ATAP output preview to the README;
+
 ## 0.2.0 - 2026-09-16
 
 ### Changed (scientific)
