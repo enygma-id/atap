@@ -29,6 +29,8 @@ RUN_FIELDS = (
     "parent_min_containment_ratio", "regularize", "simplify_tolerance_m",
     "rectangular_ratio", "circularity_threshold", "keep_properties",
     "working_crs", "round_digits", "workers", "gdal_cache_mb", "raster_drivers",
+    "mode", "min_tree_height", "max_bio_height_m", "trunk_ratio", "split_clusters",
+    "cluster_min_area_m2", "itd_min_distance_m", "wood_density", "carbon_fraction",
 )
 
 
@@ -72,6 +74,19 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--round-digits", type=int)
     parser.add_argument("--workers", type=int)
     parser.add_argument("--gdal-cache-mb", type=int)
+
+    # Mode and tree parameters
+    parser.add_argument("--mode", choices=("building", "tree"), default=None, help="Execution mode: 'building' (default) or 'tree'")
+    parser.add_argument("--min-tree-height", type=float, help="Minimum biological tree height in meters (default: 0.2)")
+    parser.add_argument("--max-bio-height-m", type=float, help="Maximum biological tree height in meters (default: 45.0)")
+    parser.add_argument("--trunk-ratio", type=float, help="Crown Base Height ratio of trunk to total height (default: 0.35)")
+    split_group = parser.add_mutually_exclusive_group()
+    split_group.add_argument("--split-clusters", action="store_true", dest="split_clusters", default=None, help="Split multi-tree clusters via ITD watershed")
+    split_group.add_argument("--no-split-clusters", action="store_false", dest="split_clusters", help="Disable ITD cluster splitting")
+    parser.add_argument("--cluster-min-area-m2", type=float, help="Minimum cluster area to apply ITD (default: 35.0)")
+    parser.add_argument("--itd-min-distance-m", type=float, help="Minimum distance between apical peaks in meters (default: 2.5)")
+    parser.add_argument("--wood-density", type=float, help="Mean wood density in g/cm3 (default: 0.57)")
+    parser.add_argument("--carbon-fraction", type=float, help="Biomass carbon fraction (default: 0.47)")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

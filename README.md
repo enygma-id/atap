@@ -131,7 +131,27 @@ uv run ruff check .
 uv run atap serve
 ```
 
-`uv` creates and uses `.venv`. Shell activation is optional. See the [CLI](docs/cli.md), [playground](docs/playground.md), [method](docs/method.md), and [output schema](docs/output-schema.md).
+`uv` creates and uses `.venv`. Shell activation is optional. See the [CLI](docs/cli.md), [playground](docs/playground.md), [method](docs/method.md), [tree method](docs/tree_method.md), [tree requirements](docs/tree_requirements.md), and [output schema](docs/output-schema.md).
+
+## Tree & Carbon Mode (`--mode tree`)
+
+ATAP supports tree canopy elevation, Individual Tree Detection (ITD), procedural tree trunks, and remote-sensing allometric carbon accounting:
+
+```sh
+atap run \
+  --mode tree \
+  --input-geojson canopy_footprints.geojson \
+  --dsm dsm.tif \
+  --dtm dtm.tif \
+  --output output_trees.geojson
+```
+
+Outputs:
+- `output_trees.geojson`: LoD 1.3 elevated canopy tiers floating above the silvicultural trunk zone (35% trunk : 65% crown).
+- `output_trees_points.geojson`: Companion 3D tree points for trunk instancing (`ColumnLayer` / 3D GLB).
+- `output_trees_summary.json`: Survey-wide carbon stock aggregates in Megagrams Carbon ($\text{Mg C}$) and $\text{Mg } CO_2e$.
+
+Read the scientific method in [`docs/tree_method.md`](./docs/tree_method.md) and data requirements in [`docs/tree_requirements.md`](./docs/tree_requirements.md).
 
 ## Sample Dataset
 

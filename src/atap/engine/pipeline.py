@@ -57,7 +57,15 @@ _OVERRIDABLE = (
     "regularize", "simplify_tolerance_m", "rectangular_ratio", "circularity_threshold",
     "working_crs", "output_crs", "keep_properties", "round_digits", "coord_digits",
     "workers", "gdal_cache_mb", "raster_drivers",
+    "mode", "min_tree_height", "max_bio_height_m", "trunk_ratio", "split_clusters",
+    "cluster_min_area_m2", "itd_min_distance_m", "wood_density", "carbon_fraction",
 )
+
+
+TREE_CONFIG_KEYS = {
+    "mode", "min_tree_height", "max_bio_height_m", "trunk_ratio", "split_clusters",
+    "cluster_min_area_m2", "itd_min_distance_m", "wood_density", "carbon_fraction",
+}
 
 
 def run_elevation(
@@ -90,6 +98,15 @@ def run_elevation(
     workers: int | None = None,
     gdal_cache_mb: int | None = None,
     raster_drivers: list[str] | None = None,
+    mode: str | None = None,
+    min_tree_height: float | None = None,
+    max_bio_height_m: float | None = None,
+    trunk_ratio: float | None = None,
+    split_clusters: bool | None = None,
+    cluster_min_area_m2: float | None = None,
+    itd_min_distance_m: float | None = None,
+    wood_density: float | None = None,
+    carbon_fraction: float | None = None,
     base_cfg: Config | None = None,
     progress_cb: Callable[[int, int, str], None] | None = None,
     log_cb: Callable[[str], None] | None = None,
@@ -132,6 +149,11 @@ def run_elevation(
         v = local.get(k)
         if v is not None:
             setattr(cfg, k, v)
+
+    # Branch for tree canopy mode
+    if getattr(cfg, "mode", "building") == "tree":
+        from .tree import run_tree_pipeline
+        return run_tree_pipeline(cfg, progress_cb, log_cb, cancel_flag)
 
     # Validate configuration before opening large inputs.
     if cfg.base_elevation_stat not in ("min", "mean", "median"):
@@ -287,7 +309,8 @@ def run_elevation(
         dsm_unit = CRS.from_user_input(dsm_src.crs).axis_info[0].unit_name
         params = {k: v for k, v in asdict(cfg).items()
                   if k not in ("input_geojson", "dtm_path", "dsm_path", "output_geojson",
-                               "working_crs", "output_crs", "workers", "gdal_cache_mb")}
+                               "working_crs", "output_crs", "workers", "gdal_cache_mb")
+                  and (cfg.mode == "tree" or k not in TREE_CONFIG_KEYS)}
         finished = datetime.now(timezone.utc)
         meta = {
             "atap": {

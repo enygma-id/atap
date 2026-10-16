@@ -16,6 +16,7 @@ Building IDs automatically come from `properties.id`. Use `--id-field FIELD` to 
 
 | Flag | Default |
 |---|---|
+| `--mode` | `building` (`building` or `tree`) |
 | `--height-diff-threshold-m` | `3.0` |
 | `--min-subregion-area-m2` | `12.0` |
 | `--min-building-height-m` | `2.0` |
@@ -34,6 +35,19 @@ Building IDs automatically come from `properties.id`. Use `--id-field FIELD` to 
 | `--keep-properties` | all footprint properties |
 | `--working-crs` | `EPSG:32750` |
 | `--round-digits` | `2` |
+
+### Tree Mode Flags (`--mode tree`)
+
+| Flag | Default | Description |
+|---|---|---|
+| `--min-tree-height` | `0.2` | Minimum canopy apex height in metres |
+| `--max-bio-height-m` | `45.0` | Tropical urban hydraulic tree height limit (metres) |
+| `--trunk-ratio` | `0.35` | Silvicultural Crown Base Height ratio (35% trunk : 65% canopy) |
+| `--split-clusters` / `--no-split-clusters` | `True` | Partition multi-tree clusters using Marker-controlled Watershed |
+| `--cluster-min-area-m2` | `35.0` | Minimum canopy area threshold to trigger ITD cluster splitting |
+| `--itd-min-distance-m` | `2.5` | Minimum inter-apical peak distance in metres |
+| `--wood-density` | `0.57` | Mean wood specific gravity ($\text{g/cm}^3$) |
+| `--carbon-fraction` | `0.47` | Carbon fraction of dry wood biomass (IPCC 2006) |
 
 Execution options do not change scientific output. `--workers` defaults to
 automatic selection of up to four workers on every platform. Explicit values

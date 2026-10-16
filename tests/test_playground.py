@@ -17,6 +17,7 @@ EXCLUDED_CONFIG_FIELDS = {
     "output_crs",
     "raster_drivers",
     "coord_digits",
+    "mode",
 }
 
 
