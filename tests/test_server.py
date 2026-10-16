@@ -98,9 +98,11 @@ def test_health_static_submit_status_events_and_artifact(tmp_path: Path):
         assert '"type": "started"' in events.text
         assert '"type": "completed"' in events.text
         assert '"type": "close"' in events.text
-        assert client.get(
-            f"/api/jobs/{body['job_id']}/artifacts/log"
-        ).status_code == 200
+        log_res = client.get(f"/api/jobs/{body['job_id']}/artifacts/log")
+        assert log_res.status_code == 200
+        assert "Job" in log_res.text
+        assert client.get(f"/api/jobs/{body['job_id']}/artifacts/glb_trunk").status_code == 200
+        assert client.get(f"/api/jobs/{body['job_id']}/artifacts/glb_canopy").status_code == 200
         assert client.get(
             f"/api/jobs/{body['job_id']}/artifacts/params"
         ).status_code == 404
@@ -327,3 +329,19 @@ def test_ttl_preserves_shared_inputs_for_queued_and_running_jobs(tmp_path):
         assert not source_dir.exists() and not consumer_dir.exists()
     finally:
         manager.close()
+
+
+def test_docs_endpoint(tmp_path: Path):
+    config = ServerConfig(work_dir=tmp_path)
+    manager = JobManager(config)
+    with TestClient(create_app(config, manager)) as client:
+        res = client.get("/docs/tree_viewer_guide.md")
+        assert res.status_code == 200
+        assert "ATAP Deck.gl 3D Tree Viewer Guide" in res.text
+        assert res.headers["content-type"].startswith("text/markdown")
+
+        # Non-existent doc
+        assert client.get("/docs/non_existent.md").status_code == 404
+        # Traversal protection
+        assert client.get("/docs/../../etc/passwd").status_code in (404, 400)
+

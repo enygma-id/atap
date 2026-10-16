@@ -17,6 +17,10 @@
 <script>
   if (!window.deck) document.write('<script src="https://unpkg.com/deck.gl@9.3.11/dist.min.js"><\/script>');
 </script>
+<script src="vendor/geotiff.min.js"></script>
+<script>
+  if (!window.GeoTIFF) document.write('<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"><\/script>');
+</script>
 <style>
   :root{
     --panel-w:390px;
@@ -59,7 +63,7 @@
     box-shadow:0 12px 35px rgba(0,0,0,.18);backdrop-filter:blur(10px);
   }
   .panel-head{padding:14px 14px 0}
-  .panel-body{overflow:auto;padding:0 14px;flex:1}
+  .panel-body{overflow-y:auto;overflow-x:hidden;padding:0 14px;flex:1}
   .panel-foot{padding:10px 14px 10px;border-top:1px solid var(--line)}
   .brand{display:flex;align-items:baseline;gap:8px;margin-bottom:3px}
   .brand h1{margin:0;font-size:21px;letter-spacing:-.01em}
@@ -125,6 +129,89 @@
   .range-wrap{width:150px;display:flex;align-items:center;gap:8px;flex:none}
   input[type=range]{width:86px;accent-color:var(--accent)}
   .range-wrap b{font-size:11.5px;min-width:48px;text-align:right;font-variant-numeric:tabular-nums}
+  .dual-range-wrap{
+    position:relative;
+    width:100%;
+    height:22px;
+    display:flex;
+    align-items:center;
+    box-sizing:border-box;
+    margin:2px 0;
+  }
+  .dual-range-track{
+    position:absolute;
+    left:0;
+    right:0;
+    height:4px;
+    border-radius:2px;
+    background:var(--line-2);
+    pointer-events:none;
+  }
+  .dual-range-bar{
+    position:absolute;
+    left:0%;
+    right:0%;
+    height:4px;
+    border-radius:2px;
+    background:var(--accent);
+    pointer-events:none;
+  }
+  .dual-range-wrap input[type=range].dual-range-input{
+    position:absolute;
+    left:0;
+    top:0;
+    width:100% !important;
+    height:100%;
+    margin:0;
+    padding:0;
+    background:transparent !important;
+    pointer-events:none;
+    -webkit-appearance:none;
+    appearance:none;
+    outline:none;
+    border:none;
+  }
+  .dual-range-wrap input[type=range].dual-range-input::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    appearance:none;
+    pointer-events:auto;
+    width:14px;
+    height:14px;
+    border-radius:50%;
+    background:#fff;
+    border:2.5px solid var(--accent);
+    box-shadow:0 1px 3px rgba(0,0,0,.22);
+    cursor:pointer;
+    transition:transform .08s ease,border-color .08s ease;
+  }
+  .dual-range-wrap input[type=range].dual-range-input::-moz-range-thumb{
+    appearance:none;
+    pointer-events:auto;
+    width:14px;
+    height:14px;
+    border-radius:50%;
+    background:#fff;
+    border:2.5px solid var(--accent);
+    box-shadow:0 1px 3px rgba(0,0,0,.22);
+    cursor:pointer;
+    transition:transform .08s ease,border-color .08s ease;
+  }
+  .dual-range-wrap input[type=range].dual-range-input::-webkit-slider-thumb:hover{
+    transform:scale(1.18);
+    border-color:#1c5382;
+  }
+  .dual-range-wrap input[type=range].dual-range-input::-moz-range-thumb:hover{
+    transform:scale(1.18);
+    border-color:#1c5382;
+  }
+  .dual-range-wrap input[type=range].dual-range-input::-webkit-slider-runnable-track{
+    background:transparent;
+    border:none;
+  }
+  .dual-range-wrap input[type=range].dual-range-input::-moz-range-track{
+    background:transparent;
+    border:none;
+  }
   select,input[type=text],input[type=number]{
     font:inherit;font-size:12px;padding:5px 7px;border:1px solid #d5dbe2;border-radius:6px;background:#fff;color:var(--text);
   }
@@ -200,6 +287,12 @@
   .history-item .hi-text{flex:1;min-width:0}
   .history-item b{display:block;font-size:11.5px;font-weight:650}
   .history-item small{display:block;font-size:10px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .artifact-group{margin-bottom:12px}
+  .artifact-group-hdr{display:flex;align-items:center;justify-content:space-between;padding:3px 2px 6px;border-bottom:1px solid var(--line-2);margin-bottom:6px}
+  .artifact-group-title{font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:var(--text-3)}
+  .artifact-guide-btn{display:inline-flex;align-items:center;gap:3.5px;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;color:var(--accent);background:var(--fill);text-decoration:none;border:1px solid var(--line);transition:all .15s ease}
+  .artifact-guide-btn:hover{background:#e8f1f8;border-color:var(--accent);color:#1c4974}
 
   .skip-list{max-height:170px;overflow:auto;border:1px solid var(--line);border-radius:8px}
   .skip-item{display:flex;justify-content:space-between;gap:10px;padding:6px 8px;border-top:1px solid var(--line);font-size:11px}
@@ -322,6 +415,15 @@
         <div id="api-state" class="hint">Not checked yet.</div>
       </div>
 
+      <div class="section-label">Engine Mode<div class="rule"></div></div>
+      <div class="tabs" style="margin-bottom:8px">
+        <button type="button" id="mode-sel-building" class="active" aria-pressed="true">Building (LoD 1.3)</button>
+        <button type="button" id="mode-sel-tree" aria-pressed="false">Trees &amp; Carbon</button>
+      </div>
+      <div id="tree-run-notice" class="hint" style="display:none;margin-bottom:12px;background:var(--ok-bg);color:var(--ok);padding:8px 10px;border-radius:8px;font-size:11px">
+        <b>Tree Mode:</b> Individual tree segmentation, LoD 1.3 canopy tiers, and carbon stock estimates.
+      </div>
+
       <div class="section-label">Input<div class="rule"></div><small>all required</small></div>
 
       <button class="drop required-missing" id="drop-footprint" type="button"></button>
@@ -340,23 +442,29 @@
         and heights come from <b>nDSM = DSM − DTM</b>. Runs without a DTM are not supported.
       </div>
 
-      <div class="section-label">Decomposition<div class="rule"></div>
-        <button class="link-btn" id="btn-reset-params" type="button">Reset to defaults</button></div>
-      <div id="params-core"></div>
+      <div id="building-params-container">
+        <div class="section-label">Decomposition<div class="rule"></div>
+          <button class="link-btn" id="btn-reset-params" type="button">Reset to defaults</button></div>
+        <div id="params-core"></div>
 
-      <div class="section-label">Terrain &amp; ground<div class="rule"></div></div>
-      <div id="params-terrain"></div>
+        <div class="section-label">Terrain &amp; ground<div class="rule"></div></div>
+        <div id="params-terrain"></div>
 
-      <div class="section-label">Geometry<div class="rule"></div></div>
-      <div id="params-geom"></div>
+        <div class="section-label">Geometry<div class="rule"></div></div>
+        <div id="params-geom"></div>
 
-      <div class="section-label">Identity &amp; output<div class="rule"></div></div>
-      <div id="params-out"></div>
+        <div class="section-label">Identity &amp; output<div class="rule"></div></div>
+        <div id="params-out"></div>
 
-      <details class="group">
-        <summary>Execution<small>· does not change results</small><span class="rule"></span></summary>
-        <div id="params-exec"></div>
-      </details>
+        <details class="group">
+          <summary>Execution<small>· does not change results</small><span class="rule"></span></summary>
+          <div id="params-exec"></div>
+        </details>
+      </div>
+
+      <div class="section-label" id="lbl-params-tree" style="display:none">Tree &amp; allometry parameters<div class="rule"></div>
+        <button class="link-btn" id="btn-reset-tree-params" type="button">Reset to defaults</button></div>
+      <div id="params-tree" style="display:none"></div>
 
       <div class="section-label">Runs<div class="rule"></div></div>
       <div id="history"><p class="hint" style="margin:0">No runs yet in this session.</p></div>
@@ -373,32 +481,173 @@
         <div class="stat-grid" id="stats"></div>
         <div id="result-notice"></div>
 
-        <div class="section-label">Display<div class="rule"></div></div>
+        <div id="building-display-controls">
+          <div class="section-label">Display<div class="rule"></div></div>
 
-        <div class="tabs" style="margin-bottom:9px">
-          <button id="mode-part" class="active" aria-pressed="true">Part hover</button>
-          <button id="mode-building" aria-pressed="false">Building group</button>
-        </div>
+          <div class="tabs" style="margin-bottom:9px">
+            <button id="mode-part" class="active" aria-pressed="true">Part hover</button>
+            <button id="mode-building" aria-pressed="false">Building group</button>
+          </div>
 
-        <label class="control">
-          <span class="lbl"><strong>Colour by hierarchy level</strong><small>Tell nested parts apart</small></span>
-          <input id="decomposition-toggle" type="checkbox" checked>
-        </label>
-        <label class="control">
-          <span class="lbl"><strong>Ground elevation</strong><small id="ground-hint">Off · local plane: parts start at 0 m on the flat basemap</small></span>
-          <input id="ground-toggle" type="checkbox">
-        </label>
-        <label class="control">
-          <span class="lbl"><strong>Explode hierarchy</strong><small>Viewer-only vertical gap per level</small></span>
-          <input id="explode-toggle" type="checkbox">
-        </label>
-        <div class="control">
-          <span class="lbl"><strong>Explode gap</strong><small>Per hierarchy level</small></span>
-          <div class="range-wrap">
-            <input id="explode-gap" type="range" min="0" max="10" step="0.5" value="2.5">
-            <b id="explode-value">2.5 m</b>
+          <label class="control">
+            <span class="lbl"><strong>Colour by hierarchy level</strong><small>Tell nested parts apart</small></span>
+            <input id="decomposition-toggle" type="checkbox" checked>
+          </label>
+          <label class="control">
+            <span class="lbl"><strong>Ground elevation</strong><small id="ground-hint">Off · local plane: parts start at 0 m on the flat basemap</small></span>
+            <input id="ground-toggle" type="checkbox">
+          </label>
+          <label class="control">
+            <span class="lbl"><strong>Explode hierarchy</strong><small>Viewer-only vertical gap per level</small></span>
+            <input id="explode-toggle" type="checkbox">
+          </label>
+          <div class="control">
+            <span class="lbl"><strong>Explode gap</strong><small>Per hierarchy level</small></span>
+            <div class="range-wrap">
+              <input id="explode-gap" type="range" min="0" max="10" step="0.5" value="2.5">
+              <b id="explode-value">2.5 m</b>
+            </div>
           </div>
         </div>
+
+        <div id="tree-display-controls" style="display:none">
+          <div class="section-label">Display<div class="rule"></div></div>
+
+          <div class="tabs" style="margin-bottom:9px">
+            <button id="mode-tree-tier" class="active" aria-pressed="true">Tier hover</button>
+            <button id="mode-tree-group" aria-pressed="false">Tree group</button>
+          </div>
+
+          <label class="control">
+            <span class="lbl"><strong>Canopy Tiers (LoD 1.3)</strong><small>Floating tiered canopy polygons above trunk</small></span>
+            <input id="tree-canopy-toggle" type="checkbox" checked>
+          </label>
+          <label class="control">
+            <span class="lbl"><strong>Tree Trunks</strong><small>3D cylinders from ground to crown base</small></span>
+            <input id="tree-trunk-toggle" type="checkbox" checked>
+          </label>
+          <label class="control">
+            <span class="lbl"><strong>DTM Ground Elevation</strong><small id="tree-ground-hint">Off · placed on z=0 basemap plane</small></span>
+            <input id="tree-ground-toggle" type="checkbox">
+          </label>
+
+          <div class="control">
+            <span class="lbl"><strong>Canopy Color Scheme</strong><small>Canopy visual ramp</small></span>
+            <div class="param-buttons segmented" id="tree-color-buttons">
+              <button type="button" class="param-option" id="color-tree-foliage" aria-pressed="true">Foliage</button>
+              <button type="button" class="param-option" id="color-tree-height" aria-pressed="false">Height</button>
+              <button type="button" class="param-option" id="color-tree-carbon" aria-pressed="false">Carbon</button>
+            </div>
+          </div>
+
+          <div class="section-label">Interactive Filters<div class="rule"></div></div>
+          <div class="control stack">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;width:100%">
+              <span class="lbl"><strong>Tree Height</strong></span>
+              <small id="tree-filter-height-val" style="font-variant-numeric:tabular-nums;color:var(--text-3);font-size:11px">All (0 – 45 m)</small>
+            </div>
+            <div class="dual-range-wrap">
+              <div class="dual-range-track"></div>
+              <div class="dual-range-bar" id="tree-filter-height-bar"></div>
+              <input id="tree-filter-min-height" class="dual-range-input" type="range" min="0" max="45" step="0.5" value="0">
+              <input id="tree-filter-max-height" class="dual-range-input" type="range" min="0" max="45" step="0.5" value="45">
+            </div>
+          </div>
+          <div class="control stack">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;width:100%">
+              <span class="lbl"><strong>Crown Diameter</strong></span>
+              <small id="tree-filter-diameter-val" style="font-variant-numeric:tabular-nums;color:var(--text-3);font-size:11px">All (0 – 30 m)</small>
+            </div>
+            <div class="dual-range-wrap">
+              <div class="dual-range-track"></div>
+              <div class="dual-range-bar" id="tree-filter-diameter-bar"></div>
+              <input id="tree-filter-min-diameter" class="dual-range-input" type="range" min="0" max="30" step="0.5" value="0">
+              <input id="tree-filter-max-diameter" class="dual-range-input" type="range" min="0" max="30" step="0.5" value="30">
+            </div>
+          </div>
+          <div class="control stack">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;width:100%">
+              <span class="lbl"><strong>Carbon Stock</strong></span>
+              <small id="tree-filter-carbon-val" style="font-variant-numeric:tabular-nums;color:var(--text-3);font-size:11px">All (0 – 2000 kg C)</small>
+            </div>
+            <div class="dual-range-wrap">
+              <div class="dual-range-track"></div>
+              <div class="dual-range-bar" id="tree-filter-carbon-bar"></div>
+              <input id="tree-filter-min-carbon" class="dual-range-input" type="range" min="0" max="2000" step="10" value="0">
+              <input id="tree-filter-max-carbon" class="dual-range-input" type="range" min="0" max="2000" step="10" value="2000">
+            </div>
+          </div>
+
+          <div class="section-label">3D Tree Models (GLB)<div class="rule"></div><small>Optional</small></div>
+          <label class="control">
+            <span class="lbl"><strong>3D Tree Mesh (GLB)</strong><small>Instanced 3D GLB model</small></span>
+            <input id="tree-glb-toggle" type="checkbox">
+          </label>
+          <div id="tree-glb-options" style="display:none;padding-top:4px">
+            <div class="control">
+              <span class="lbl"><strong>Trunk Model</strong><small id="tree-trunk-model-status">Default (tree-01)</small></span>
+              <div style="display:flex;gap:4px;margin-top:4px">
+                <button type="button" class="link-btn" id="btn-upload-custom-trunk">Upload GLB</button>
+                <span>·</span>
+                <button type="button" class="link-btn" id="btn-clear-trunk">Reset</button>
+              </div>
+              <input type="file" id="file-custom-trunk" accept=".glb" style="display:none">
+            </div>
+            <div class="control">
+              <span class="lbl"><strong>Canopy Model</strong><small id="tree-canopy-model-status">Default (tree-01)</small></span>
+              <div style="display:flex;gap:4px;margin-top:4px">
+                <button type="button" class="link-btn" id="btn-upload-custom-canopy">Upload GLB</button>
+                <span>·</span>
+                <button type="button" class="link-btn" id="btn-clear-canopy">Reset</button>
+              </div>
+              <input type="file" id="file-custom-canopy" accept=".glb" style="display:none">
+            </div>
+            <div class="hint" style="margin-top:6px">
+              Standard: 1×1×1m Z-up normalized GLB. Default tree-01 sample models are active automatically. Upload custom GLB to replace trunk or canopy. Reset restores default sample.
+            </div>
+          </div>
+        </div>
+
+        <div class="section-label">Overlay<div class="rule"></div></div>
+        <label class="control">
+          <span class="lbl"><strong>LOD parts</strong><small>Show/hide decomposition result</small></span>
+          <input id="lod-toggle" type="checkbox" checked>
+        </label>
+        <label class="control">
+          <span class="lbl"><strong>Show DTM</strong><small>Bare-ground elevation · colourmap</small></span>
+          <input id="dtm-toggle" type="checkbox">
+        </label>
+        <div class="control" id="dtm-mode-row" style="display:none;padding-top:0;border-top:0">
+          <span class="lbl"><small>View mode</small></span>
+          <div class="param-buttons segmented">
+            <button type="button" class="param-option" id="dtm-2d" aria-pressed="true">2D</button>
+            <button type="button" class="param-option" id="dtm-3d" aria-pressed="false">3D</button>
+          </div>
+        </div>
+        <div class="control" id="dtm-exaggeration-row" style="display:none;padding-top:0;border-top:0">
+          <span class="lbl"><small>Vertical scale</small></span>
+          <div class="range-wrap">
+            <input id="dtm-exaggeration" type="range" min="1" max="10" step="0.5" value="1">
+            <b id="dtm-exaggeration-val">1.0×</b>
+          </div>
+        </div>
+        <div id="dtm-downsample-notice" class="hint" style="display:none;color:var(--text-dim);font-size:11px;line-height:1.4;margin:4px 0 6px 0;padding:5px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:4px"></div>
+        <label class="control">
+          <span class="lbl"><strong>Show footprints</strong><small>Input polygons draped to DTM ground level</small></span>
+          <input id="footprints-toggle" type="checkbox">
+        </label>
+        <label class="control">
+          <span class="lbl"><strong>Show DSM</strong><small>Surface model · colourmap</small></span>
+          <input id="dsm-toggle" type="checkbox">
+        </label>
+        <div class="control" id="dsm-mode-row" style="display:none;padding-top:0;border-top:0">
+          <span class="lbl"><small>View mode</small></span>
+          <div class="param-buttons segmented">
+            <button type="button" class="param-option" id="dsm-2d" aria-pressed="true">2D</button>
+            <button type="button" class="param-option" id="dsm-3d" aria-pressed="false">3D</button>
+          </div>
+        </div>
+        <div id="dsm-downsample-notice" class="hint" style="display:none;color:var(--text-dim);font-size:11px;line-height:1.4;margin:4px 0 6px 0;padding:5px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:4px"></div>
 
         <div id="hierarchy-section"></div>
 
@@ -497,7 +746,7 @@ if (!window.deck) {
   throw new Error('deck.gl is not available');
 }
 
-const {Deck, GeoJsonLayer, TileLayer, BitmapLayer,
+const {Deck, GeoJsonLayer, TileLayer, BitmapLayer, SimpleMeshLayer, ColumnLayer, ScenegraphLayer,
        AmbientLight, DirectionalLight, LightingEffect} = deck;
 
 const $ = id => document.getElementById(id);
@@ -524,6 +773,7 @@ const state = {
   history: [],
   activeRun: null,
   hoverMode: 'part',
+  treeHoverMode: 'tier',
   decomposition: true,
   groundElevation: false, // spec §29: false = LOCAL_PLANE, true = WORLD_ELEVATION
   explode: false,
@@ -534,7 +784,34 @@ const state = {
   treeHoveredPartId: null,
   bounds: null,
   basemapErrors: 0,
-  statusSticky: false     // true while a result summary or an error is shown
+  statusSticky: false,    // true while a result summary or an error is shown
+  showDtm: false,
+  showFootprints: false,
+  showDsm: false,
+  showLod: true,
+  dtmMode: '2d',
+  dsmMode: '2d',
+  dtmExaggeration: 1.0,
+  raster: {dtm: null, dsm: null}, // {bitmap, bounds} per slot after decode
+  _drapedFootprintGeoJSON: null,
+  engineMode: 'building',
+  treeCanopy: true,
+  treeTrunks: true,
+  treeGroundElevation: false,
+  treeColorScheme: 'foliage',
+  treeFilterMinHeight: 0,
+  treeFilterMaxHeight: 45,
+  treeFilterMinDiameter: 0,
+  treeFilterMaxDiameter: 30,
+  treeFilterMinCarbon: 0,
+  treeFilterMaxCarbon: 2000,
+  treeGlbEnabled: false,
+  treeTrunkGlbUrl: '/models/tree_trunk.glb',
+  treeCanopyGlbUrl: '/models/tree_canopy.glb',
+  treeTrunkStatus: 'Default (tree-01)',
+  treeCanopyStatus: 'Default (tree-01)',
+  pointsData: null,
+  summaryData: null
 };
 
 const DEFAULT_VIEW = {longitude: 117.0, latitude: -2.0, zoom: 4.2, pitch: 0, bearing: 0};
@@ -610,7 +887,32 @@ const PARAMS = [
    type:'number', min:0, max:8, step:1, def:0},
   {group:'exec', key:'gdal_cache_mb', label:'Raster cache',
    hint:'Memory for re-using raster tiles just read. Raise it for very large DSMs if RAM allows.',
-   type:'number', min:64, max:16384, step:64, def:512, unit:'MB'}
+   type:'number', min:64, max:16384, step:64, def:512, unit:'MB'},
+
+  {group:'tree', key:'trunk_ratio', label:'Trunk ratio (Crown Base Height)',
+   hint:'Tree height proportion allocated to trunk (default 0.35 = 35% trunk : 65% crown).',
+   type:'range', min:0.1, max:0.6, step:0.05, def:0.35, fmt:'pct'},
+  {group:'tree', key:'split_clusters', label:'ITD cluster splitting',
+   hint:'Split contiguous canopy clusters into individual trees via local maxima and watershed segmentation.',
+   type:'bool', def:true},
+  {group:'tree', key:'cluster_min_area_m2', label:'Cluster minimum area',
+   hint:'Only canopy polygons at or above this area are evaluated for multi-tree watershed decomposition.',
+   type:'range', min:10, max:100, step:5, def:35.0, unit:'m²'},
+  {group:'tree', key:'itd_min_distance_m', label:'Minimum distance between trees',
+   hint:'Minimum spatial distance (m) between local canopy apex peaks on the nDSM.',
+   type:'range', min:1.0, max:10.0, step:0.5, def:2.5, unit:'m'},
+  {group:'tree', key:'min_tree_height', label:'Minimum tree height',
+   hint:'Trees shorter than this threshold are skipped (filters out grass/ground noise).',
+   type:'range', min:0.1, max:2.0, step:0.1, def:0.2, unit:'m'},
+  {group:'tree', key:'max_bio_height_m', label:'Maximum biological height',
+   hint:'Tropical urban tree height ceiling; taller objects are filtered as building rooftops.',
+   type:'range', min:25.0, max:60.0, step:1.0, def:45.0, unit:'m'},
+  {group:'tree', key:'wood_density', label:'Wood density (dry biomass)',
+   hint:'Average tropical hardwood specific gravity in g/cm³ (Chave et al. 2009).',
+   type:'range', min:0.3, max:0.9, step:0.01, def:0.57, unit:'g/cm³'},
+  {group:'tree', key:'carbon_fraction', label:'Dry wood carbon fraction',
+   hint:'Dry wood biomass to carbon conversion fraction (IPCC 2006).',
+   type:'range', min:0.4, max:0.55, step:0.01, def:0.47}
 ];
 
 const REASONS = {
@@ -625,8 +927,12 @@ const REASONS = {
 };
 const SKIP_REASONS = {
   INVALID_OR_EMPTY_FOOTPRINT: 'Footprint empty or not a polygon',
-  OUTSIDE_ANALYSIS_GRID: 'Outside the DSM',
-  NO_VALID_DSM_DTM_PIXELS: 'No valid DSM/DTM pixels'
+  OUTSIDE_ANALYSIS_GRID: 'Outside analysis grid / DSM boundary',
+  NO_VALID_DSM_DTM_PIXELS: 'No valid DSM/DTM pixels',
+  NO_VALID_RASTER_DATA: 'No valid DSM/DTM pixels (NaN or clipped nodata)',
+  LOW_VEGETATION_OR_GROUND: 'Ground or low grass/trench (height < 0.2 m)',
+  ROOFTOP_STRUCTURE: 'Rooftop artifact on high building (HVAC / stairwell)',
+  ANTENNA_OR_TOWER: 'Narrow communications mast / antenna'
 };
 
 /* --------------------------------------------------------------- deck.gl */
@@ -640,7 +946,8 @@ const deckgl = new Deck({
   initialViewState: DEFAULT_VIEW,
   controller: true,
   effects: [lightingEffect],
-  layers: []
+  layers: [],
+  onViewStateChange: ({viewState}) => { deckgl.setProps({initialViewState: viewState}); }
 });
 
 /* ======================================================================= */
@@ -660,6 +967,12 @@ function addZ(coords, z) {
    Extrusion is always part_height_m. Explode adds a viewer-only offset per
    hierarchy level. Canonical values are never modified. */
 function renderBase(p) {
+  if (state.isTreeMode) {
+    const agl = Number(p.base_height_agl_m) || 0;
+    return state.treeGroundElevation
+      ? (Number.isFinite(p.base_elevation_m) ? p.base_elevation_m : (Number(p.ground_elevation_m) || 0) + agl)
+      : agl;
+  }
   const agl = Number(p.base_height_agl_m) || 0;
   const base = state.groundElevation
     ? (Number.isFinite(p.base_elevation_m) ? p.base_elevation_m : (Number(p.ground_elevation_m) || 0) + agl)
@@ -670,7 +983,7 @@ function renderBase(p) {
 /* Coordinates are rewritten only when placement settings change, not on
    every hover. */
 function renderData() {
-  const key = `${state.groundElevation}|${state.explode}|${state.explodeGap}`;
+  const key = `${state.isTreeMode}|${state.treeGroundElevation}|${state.groundElevation}|${state.explode}|${state.explodeGap}`;
   if (state.renderCache?.src === state.data && state.renderCache.key === key) return state.renderCache.data;
   const features = state.data.features.map(f => {
     const p = f.properties, z = renderBase(p), g = f.geometry || {};
@@ -688,7 +1001,15 @@ const LEVEL_COLORS = [[55,126,184],[77,175,74],[255,127,0],[152,78,163],[228,26,
 const levelColor = lvl => LEVEL_COLORS[Math.min(lvl || 0, LEVEL_COLORS.length - 1)];
 
 function isHighlighted(f) {
-  const p = f.properties;
+  const p = f.properties || f;
+  if (state.isTreeMode) {
+    if (state.treeHoverMode === 'group') {
+      const targetId = state.pinnedObjectId || state.hoveredObjectId;
+      if (!targetId) return false;
+      return p.object_id === targetId || p.parent_id === targetId || (p.object_id && p.object_id.startsWith(targetId + '_'));
+    }
+    return Boolean(state.hoveredPartId && p.part_id === state.hoveredPartId);
+  }
   if (state.treeHoveredPartId) return p.part_id === state.treeHoveredPartId;
   return state.hoverMode === 'building'
     ? Boolean((state.pinnedObjectId || state.hoveredObjectId) &&
@@ -701,6 +1022,132 @@ function fillColor(f) {
   if (!state.decomposition) return [74,119,152,215];
   const c = levelColor(f.properties.part_level);
   return [c[0], c[1], c[2], 210];
+}
+
+function getTreeCanopyColor(f) {
+  const p = f.properties;
+  if (isHighlighted(f)) return [255, 221, 74, 245];
+  if (state.treeColorScheme === 'height') {
+    const h = Number(p.top_height_agl_m || p.height_lidar_m || 5);
+    if (h < 5) return [161, 218, 180, 220];
+    if (h < 10) return [65, 182, 196, 220];
+    if (h < 20) return [44, 127, 184, 230];
+    return [37, 52, 148, 240];
+  }
+  if (state.treeColorScheme === 'carbon') {
+    const c = Number(p.carbon_kg || 0);
+    if (c < 50) return [254, 240, 217, 220];
+    if (c < 200) return [253, 204, 138, 220];
+    if (c < 500) return [252, 141, 89, 230];
+    return [215, 48, 31, 240];
+  }
+  const lvl = Math.min(p.part_level || 0, 3);
+  const foliageTones = [
+    [46, 125, 50, 220],
+    [67, 160, 71, 230],
+    [102, 187, 106, 240],
+    [129, 199, 132, 245]
+  ];
+  return foliageTones[lvl];
+}
+
+function extractTreePoints(fc) {
+  if (!fc?.features) return [];
+  const roots = fc.features.filter(f => !f.properties.parent_part_id || f.properties.part_level === 0);
+  return roots.map((f, i) => {
+    const p = f.properties || {};
+    let coord = [0, 0];
+    if (p.longitude != null && p.latitude != null) {
+      coord = [Number(p.longitude), Number(p.latitude)];
+    } else {
+      const g = f.geometry;
+      if (g?.type === 'Polygon' && g.coordinates?.[0]?.length) {
+        const ring = g.coordinates[0];
+        let sx = 0, sy = 0;
+        for (const pt of ring) { sx += pt[0]; sy += pt[1]; }
+        coord = [sx / ring.length, sy / ring.length];
+      } else if (g?.type === 'MultiPolygon' && g.coordinates?.length) {
+        let maxLen = 0, bestRing = null;
+        for (const poly of g.coordinates) {
+          if (poly?.[0]?.length > maxLen) {
+            maxLen = poly[0].length;
+            bestRing = poly[0];
+          }
+        }
+        if (bestRing) {
+          let sx = 0, sy = 0;
+          for (const pt of bestRing) { sx += pt[0]; sy += pt[1]; }
+          coord = [sx / bestRing.length, sy / bestRing.length];
+        }
+      } else if (g?.type === 'Point') {
+        coord = g.coordinates;
+      }
+    }
+    const h = Number(p.height_lidar_m || p.top_height_agl_m || p.height || 5);
+    const crDia = Number(p.crown_diameter_m || p.crown_diameter || Math.sqrt(p.area_m2 || 10) * 1.1);
+    const trH = Number(p.trunk_height || (h * 0.35));
+    const dbh = Number(p.dbh_cm || (0.55 * Math.pow(h, 0.92) * Math.pow(crDia, 0.42)));
+    const trDia = Number(p.trunk_diameter || Math.max(0.15, dbh / 100));
+    const objId = p.object_id || p.id || p.tree_id || `T${i+1}`;
+    return {
+      ...p,
+      coordinates: coord,
+      object_id: objId,
+      parent_id: p.parent_id || '',
+      tree_id: objId,
+      part_id: p.part_id || `${objId}-P00`,
+      ground_z: Number(p.ground_elevation_m || p.ground_z || 0),
+      ground_elevation_m: Number(p.ground_elevation_m || p.ground_z || 0),
+      height: h,
+      height_lidar_m: h,
+      top_height_agl_m: h,
+      trunk_height: trH,
+      trunk_diameter: trDia,
+      crown_height: Math.max(0.5, h - trH),
+      crown_diameter: crDia,
+      crown_diameter_m: crDia,
+      dbh_cm: dbh,
+      agb_kg: Number(p.agb_kg || 0),
+      carbon_kg: Number(p.carbon_kg || 0),
+      co2e_kg: Number(p.co2e_kg || 0),
+      seed_yaw: (i * 47) % 360
+    };
+  });
+}
+
+function getFilteredTreePoints() {
+  const pts = state.treePointsList || [];
+  const minH = state.treeFilterMinHeight ?? 0, maxH = state.treeFilterMaxHeight ?? 45;
+  const minD = state.treeFilterMinDiameter ?? 0, maxD = state.treeFilterMaxDiameter ?? 30;
+  const minC = state.treeFilterMinCarbon ?? 0, maxC = state.treeFilterMaxCarbon ?? 2000;
+  return pts.filter(p => {
+    if (p.height < minH || p.height > maxH) return false;
+    if (p.crown_diameter < minD || p.crown_diameter > maxD) return false;
+    if (p.carbon_kg < minC || p.carbon_kg > maxC) return false;
+    return true;
+  });
+}
+
+function getFilteredCanopyData() {
+  if (!state.data) return {type: 'FeatureCollection', features: []};
+  const minH = state.treeFilterMinHeight ?? 0, maxH = state.treeFilterMaxHeight ?? 45;
+  const minD = state.treeFilterMinDiameter ?? 0, maxD = state.treeFilterMaxDiameter ?? 30;
+  const minC = state.treeFilterMinCarbon ?? 0, maxC = state.treeFilterMaxCarbon ?? 2000;
+  const isFiltering = (minH > 0 || maxH < 45 || minD > 0 || maxD < 30 || minC > 0 || maxC < 2000);
+  if (!isFiltering) return renderData();
+
+  const baseData = renderData();
+  const features = baseData.features.filter(f => {
+    const p = f.properties;
+    const h = Number(p.height_lidar_m || p.top_height_agl_m || 0);
+    const d = Number(p.crown_diameter_m || p.crown_diameter || 0);
+    const c = Number(p.carbon_kg || 0);
+    if (h && (h < minH || h > maxH)) return false;
+    if (d && (d < minD || d > maxD)) return false;
+    if (c && (c < minC || c > maxC)) return false;
+    return true;
+  });
+  return {type: 'FeatureCollection', features};
 }
 
 /* Created once and reused: a new TileLayer instance with a new getTileData
@@ -739,10 +1186,650 @@ const BASEMAP = new TileLayer({
   }
 });
 
+/* ======================================================================= */
+/*  Raster decode (GeoTIFF → BitmapLayer / ColumnLayer)                   */
+/* ======================================================================= */
+
+const TURBO_LUT = [
+  [48, 18, 59], [64, 64, 162], [70, 107, 227], [66, 148, 255],
+  [40, 188, 235], [24, 221, 194], [50, 242, 152], [109, 254, 98],
+  [164, 252, 60], [205, 236, 52], [238, 207, 58], [253, 172, 52],
+  [251, 126, 33], [235, 80, 14], [208, 47, 5], [169, 22, 1], [122, 4, 3]
+];
+
+function turboColor(t) {
+  t = Math.max(0, Math.min(1, t));
+  const idx = t * (TURBO_LUT.length - 1);
+  const i0 = Math.floor(idx);
+  const i1 = Math.min(TURBO_LUT.length - 1, i0 + 1);
+  const f = idx - i0;
+  const c0 = TURBO_LUT[i0], c1 = TURBO_LUT[i1];
+  return [
+    Math.round((1 - f) * c0[0] + f * c1[0]),
+    Math.round((1 - f) * c0[1] + f * c1[1]),
+    Math.round((1 - f) * c0[2] + f * c1[2])
+  ];
+}
+
+function manualDownsample(src, srcW, srcH, dstW, dstH) {
+  const dst = new Float32Array(dstW * dstH);
+  const xRatio = srcW / dstW;
+  const yRatio = srcH / dstH;
+  for (let y = 0; y < dstH; y++) {
+    const srcY = Math.min(srcH - 1, Math.floor(y * yRatio));
+    const srcRowOffset = srcY * srcW;
+    const dstRowOffset = y * dstW;
+    for (let x = 0; x < dstW; x++) {
+      const srcX = Math.min(srcW - 1, Math.floor(x * xRatio));
+      dst[dstRowOffset + x] = src[srcRowOffset + srcX];
+    }
+  }
+  return dst;
+}
+
+function updateRasterNotice(slot) {
+  const el = $(`${slot}-downsample-notice`);
+  if (!el) return;
+  const isShown = slot === 'dtm' ? state.showDtm : state.showDsm;
+  const r = state.raster[slot];
+  if (!isShown || !r) {
+    el.style.display = 'none';
+    return;
+  }
+  if (r.downsampled) {
+    el.innerHTML = `<strong>Display downsampled:</strong> ${r.origWidth.toLocaleString()} × ${r.origHeight.toLocaleString()} px &rarr; ${r.width.toLocaleString()} × ${r.height.toLocaleString()} px (${r.downsampleRatio}× reduction). Full resolution used in model execution.`;
+    el.style.display = 'block';
+  } else {
+    el.innerHTML = `<strong>Native resolution:</strong> ${r.origWidth.toLocaleString()} × ${r.origHeight.toLocaleString()} px (1:1 full resolution displayed).`;
+    el.style.display = 'block';
+  }
+}
+
+async function decodeRaster(slot) {
+  let file = state.files[slot];
+  if (!file && state.activeRun) {
+    try {
+      const res = await fetch(`${state.apiBase}/api/jobs/${state.activeRun}/artifacts/${slot}`);
+      if (res.ok) {
+        file = await res.blob();
+        state.files[slot] = file;
+      }
+    } catch (_) {}
+  }
+  console.log(`[decodeRaster:${slot}] called, file:`, file?.name);
+  if (!file || !window.GeoTIFF) return null;
+  if (state.raster[slot]?.file === file) {
+    updateRasterNotice(slot);
+    return state.raster[slot];
+  }
+  try {
+    let tiff;
+    if (typeof GeoTIFF.fromBlob === 'function') {
+      try {
+        tiff = await GeoTIFF.fromBlob(file);
+      } catch (err) {
+        console.warn(`[decodeRaster:${slot}] fromBlob failed, falling back to fromArrayBuffer:`, err);
+        const arrayBuffer = await file.arrayBuffer();
+        tiff = await GeoTIFF.fromArrayBuffer(arrayBuffer);
+      }
+    } else {
+      const arrayBuffer = await file.arrayBuffer();
+      tiff = await GeoTIFF.fromArrayBuffer(arrayBuffer);
+    }
+    const image = await tiff.getImage();
+    const [r0, r1, r2, r3] = image.getBoundingBox();
+    console.log(`[decodeRaster:${slot}] bbox:`, r0, r1, r2, r3, 'geoKeys:', image.geoKeys);
+
+    const gk = image.geoKeys || {};
+    const isProjected = gk.GTModelTypeGeoKey === 1;
+    let bounds;
+    if (isProjected) {
+      let zone = 50;
+      let isSouth = false;
+      const epsg = Number(gk.ProjectedCSTypeGeoKey || 0);
+      if (epsg >= 32701 && epsg <= 32760) {
+        zone = epsg - 32700;
+        isSouth = true;
+      } else if (epsg >= 32601 && epsg <= 32660) {
+        zone = epsg - 32600;
+        isSouth = false;
+      } else {
+        const citation = (gk.GTCitationGeoKey || gk.GeogCitationGeoKey || '').toLowerCase();
+        const zoneMatch = citation.match(/utm zone (\d+)([ns]?)/i);
+        if (zoneMatch) {
+          zone = parseInt(zoneMatch[1]);
+          isSouth = zoneMatch[2].toLowerCase() === 's';
+        } else {
+          isSouth = r1 > 5000000 || (state.bounds && state.bounds[1] < 0);
+        }
+      }
+      const utmToWgs84 = (easting, northing) => {
+        const a = 6378137, f = 1/298.257223563;
+        const b = a*(1-f), e2 = 1-(b/a)**2;
+        const k0 = 0.9996, E0 = 500000, N0 = isSouth ? 10000000 : 0;
+        const lon0 = ((zone - 1) * 6 - 180 + 3) * Math.PI / 180;
+        const M = (northing - N0) / k0;
+        const mu = M / (a*(1 - e2/4 - 3*e2**2/64 - 5*e2**3/256));
+        const e1 = (1-Math.sqrt(1-e2))/(1+Math.sqrt(1-e2));
+        const phi1 = mu + (3*e1/2 - 27*e1**3/32)*Math.sin(2*mu)
+                       + (21*e1**2/16 - 55*e1**4/32)*Math.sin(4*mu)
+                       + (151*e1**3/96)*Math.sin(6*mu);
+        const N1 = a/Math.sqrt(1-e2*Math.sin(phi1)**2);
+        const T1 = Math.tan(phi1)**2, C1 = e2*Math.cos(phi1)**2/(1-e2);
+        const R1 = a*(1-e2)/(1-e2*Math.sin(phi1)**2)**1.5;
+        const D = (easting - E0)/(N1*k0);
+        const lat = phi1 - (N1*Math.tan(phi1)/R1)*(D**2/2-(5+3*T1+10*C1-4*C1**2-9*e2)*D**4/24
+                    +(61+90*T1+298*C1+45*T1**2-252*e2-3*C1**2)*D**6/720);
+        const lon = lon0 + (D-(1+2*T1+C1)*D**3/6+(5-2*C1+28*T1-3*C1**2+8*e2+24*T1**2)*D**5/120)/Math.cos(phi1);
+        return [lon * 180/Math.PI, lat * 180/Math.PI];
+      };
+      const [minLng, minLat] = utmToWgs84(r0, r1);
+      const [maxLng, maxLat] = utmToWgs84(r2, r3);
+      bounds = [minLng, minLat, maxLng, maxLat];
+      console.log(`[decodeRaster:${slot}] converted bounds:`, bounds);
+    } else {
+      bounds = [r0, r1, r2, r3];
+    }
+    const origWidth = image.getWidth(), origHeight = image.getHeight();
+    const MAX_DISPLAY_DIM = 1024;
+    const isDownsampleNeeded = origWidth > MAX_DISPLAY_DIM || origHeight > MAX_DISPLAY_DIM;
+
+    let width = origWidth, height = origHeight, raw;
+    let downsampled = false;
+    let downsampleRatio = 1.0;
+
+    if (isDownsampleNeeded) {
+      const scale = Math.min(1.0, MAX_DISPLAY_DIM / Math.max(origWidth, origHeight));
+      width = Math.max(1, Math.round(origWidth * scale));
+      height = Math.max(1, Math.round(origHeight * scale));
+      downsampled = true;
+      downsampleRatio = Number((origWidth / width).toFixed(1));
+      try {
+        const rasters = await image.readRasters({
+          width,
+          height,
+          resampleMethod: 'nearest',
+          interleave: false
+        });
+        raw = rasters[0];
+      } catch (readErr) {
+        console.warn(`[decodeRaster:${slot}] downsampled readRasters failed, falling back to manual downsample:`, readErr);
+        const [fullRaw] = await image.readRasters({ interleave: false });
+        raw = manualDownsample(fullRaw, origWidth, origHeight, width, height);
+      }
+    } else {
+      const [fullRaw] = await image.readRasters({ interleave: false });
+      raw = fullRaw;
+    }
+
+    let nodata = NaN;
+    if (typeof image.getGDALNoData === 'function') {
+      const g = image.getGDALNoData();
+      if (g != null && Number.isFinite(Number(g))) nodata = Number(g);
+    }
+    if (Number.isNaN(nodata) && image.fileDirectory.GDAL_NODATA != null) {
+      const s = String(image.fileDirectory.GDAL_NODATA).replace(/\0/g, '').trim();
+      const parsed = parseFloat(s);
+      if (Number.isFinite(parsed)) nodata = parsed;
+    }
+
+    const isNoData = v => {
+      if (!Number.isFinite(v) || Number.isNaN(v)) return true;
+      if (Number.isFinite(nodata) && Math.abs(v - nodata) < 1e-2) return true;
+      if (v <= -9990 || v >= 1e20) return true;
+      return false;
+    };
+
+    const lngPerPixel = (bounds[2] - bounds[0]) / width;
+    const latPerPixel = (bounds[3] - bounds[1]) / height;
+    const cellSizeM = Math.max(1, Math.round(lngPerPixel * 111320));
+
+    let min = Infinity, max = -Infinity;
+    for (let i = 0; i < raw.length; i++) {
+      const v = raw[i];
+      if (!isNoData(v)) {
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+    }
+    if (!Number.isFinite(min)) { min = 0; max = 1; }
+    const range = max - min || 1;
+    console.log(`[decodeRaster:${slot}] min:`, min, 'max:', max, 'nodata:', nodata, 'range:', range);
+
+    const rgba = new Uint8ClampedArray(width * height * 4);
+    for (let i = 0; i < raw.length; i++) {
+      const v = raw[i];
+      const valid = !isNoData(v);
+      const t = valid ? (v - min) / range : 0;
+      const rgb = turboColor(t);
+      const idx = i * 4;
+      rgba[idx]   = rgb[0];
+      rgba[idx+1] = rgb[1];
+      rgba[idx+2] = rgb[2];
+      rgba[idx+3] = valid ? 200 : 0;
+    }
+    const bitmap = await createImageBitmap(new ImageData(rgba, width, height));
+
+    const targetColumn = 100000;
+    const colStep = Math.max(1, Math.round(Math.sqrt((width * height) / targetColumn)));
+    const latMid = (bounds[1] + bounds[3]) / 2;
+    const pixelSizeXM = lngPerPixel * 111320 * Math.cos(latMid * Math.PI / 180);
+    const pixelSizeYM = latPerPixel * 111320;
+    const pixelSizeM = Math.max(0.2, (pixelSizeXM + pixelSizeYM) / 2);
+    const colRadiusM = pixelSizeM * colStep * 0.7071;
+
+    const columnPoints = [];
+    for (let row = 0; row < height; row += colStep) {
+      for (let col = 0; col < width; col += colStep) {
+        const v = raw[row * width + col];
+        if (isNoData(v)) continue;
+        const lng = bounds[0] + (col + 0.5) * lngPerPixel;
+        const lat = bounds[3] - (row + 0.5) * latPerPixel;
+        const t = Math.max(0, Math.min(1, (v - min) / range));
+        const rgb = turboColor(t);
+        const color = [rgb[0], rgb[1], rgb[2], 220];
+        columnPoints.push({position: [lng, lat], elevation: v, color});
+      }
+    }
+
+    state.raster[slot] = {
+      file, bitmap, bounds, columnPoints,
+      cellSizeM, colRadiusM, pixelSizeM, min, max,
+      raw, nodata, lngPerPixel, latPerPixel, width, height,
+      origWidth, origHeight, downsampled, downsampleRatio
+    };
+    if (slot === 'dtm') state._drapedFootprintGeoJSON = null;
+    updateRasterNotice(slot);
+    return state.raster[slot];
+  } catch (e) {
+    console.error(`decodeRaster(${slot}) failed:`, e);
+    return null;
+  }
+}
+
+function isNodataValue(v, nodata) {
+  if (!Number.isFinite(v) || Number.isNaN(v)) return true;
+  if (Number.isFinite(nodata) && Math.abs(v - nodata) < 1e-2) return true;
+  if (v <= -9990 || v >= 1e20) return true;
+  return false;
+}
+
+function buildRasterMesh(r, scale = 1.0) {
+  if (!r?.raw) return null;
+  const { width, height, raw, bounds, nodata, lngPerPixel, latPerPixel, min } = r;
+
+  const maxDim = 150;
+  const step = Math.max(1, Math.ceil(Math.max(width, height) / maxDim));
+  const W = Math.ceil(width / step);
+  const H = Math.ceil(height / step);
+
+  const originLng = bounds[0];
+  const originLat = bounds[1];
+  const latRad = ((bounds[1] + bounds[3]) / 2) * Math.PI / 180;
+  const mPerDegLng = 111320 * Math.cos(latRad);
+  const mPerDegLat = 111320;
+
+  const numVertices = W * H;
+  const positions = new Float32Array(numVertices * 3);
+  const texCoords = new Float32Array(numVertices * 2);
+  const normals = new Float32Array(numVertices * 3);
+
+  for (let rowIdx = 0; rowIdx < H; rowIdx++) {
+    const origRow = Math.min(height - 1, rowIdx * step);
+    const lat = bounds[3] - (origRow + 0.5) * latPerPixel;
+    const yMeters = (lat - originLat) * mPerDegLat;
+    const vTex = origRow / (height - 1);
+
+    for (let colIdx = 0; colIdx < W; colIdx++) {
+      const origCol = Math.min(width - 1, colIdx * step);
+      const lng = bounds[0] + (origCol + 0.5) * lngPerPixel;
+      const xMeters = (lng - originLng) * mPerDegLng;
+      const uTex = origCol / (width - 1);
+
+      const val = raw[origRow * width + origCol];
+      const valid = !isNodataValue(val, nodata);
+      const zMeters = valid ? Math.max(0, (val - min) * scale) : 0;
+
+      const vIdx = rowIdx * W + colIdx;
+      positions[vIdx * 3] = xMeters;
+      positions[vIdx * 3 + 1] = yMeters;
+      positions[vIdx * 3 + 2] = zMeters;
+
+      texCoords[vIdx * 2] = uTex;
+      texCoords[vIdx * 2 + 1] = vTex;
+
+      normals[vIdx * 3] = 0;
+      normals[vIdx * 3 + 1] = 0;
+      normals[vIdx * 3 + 2] = 1;
+    }
+  }
+
+  const numTriangles = (W - 1) * (H - 1) * 2;
+  const indices = new Uint32Array(numTriangles * 3);
+  let triIdx = 0;
+
+  for (let rowIdx = 0; rowIdx < H - 1; rowIdx++) {
+    for (let colIdx = 0; colIdx < W - 1; colIdx++) {
+      const i0 = rowIdx * W + colIdx;
+      const i1 = i0 + 1;
+      const i2 = (rowIdx + 1) * W + colIdx;
+      const i3 = i2 + 1;
+
+      indices[triIdx++] = i2;
+      indices[triIdx++] = i3;
+      indices[triIdx++] = i0;
+
+      indices[triIdx++] = i3;
+      indices[triIdx++] = i1;
+      indices[triIdx++] = i0;
+    }
+  }
+
+  for (let i = 0; i < indices.length; i += 3) {
+    const a = indices[i] * 3;
+    const b = indices[i + 1] * 3;
+    const c = indices[i + 2] * 3;
+
+    const abX = positions[b] - positions[a];
+    const abY = positions[b + 1] - positions[a + 1];
+    const abZ = positions[b + 2] - positions[a + 2];
+
+    const acX = positions[c] - positions[a];
+    const acY = positions[c + 1] - positions[a + 1];
+    const acZ = positions[c + 2] - positions[a + 2];
+
+    const nx = abY * acZ - abZ * acY;
+    const ny = abZ * acX - abX * acZ;
+    const nz = abX * acY - abY * acX;
+
+    normals[a] += nx; normals[a + 1] += ny; normals[a + 2] += nz;
+    normals[b] += nx; normals[b + 1] += ny; normals[b + 2] += nz;
+    normals[c] += nx; normals[c + 1] += ny; normals[c + 2] += nz;
+  }
+
+  for (let i = 0; i < numVertices * 3; i += 3) {
+    const nx = normals[i], ny = normals[i + 1], nz = normals[i + 2];
+    const len = Math.hypot(nx, ny, nz) || 1;
+    normals[i] = nx / len;
+    normals[i + 1] = ny / len;
+    normals[i + 2] = nz / len;
+  }
+
+  return {
+    origin: [originLng, originLat, 0],
+    mesh: {
+      topology: 'triangle-list',
+      attributes: {
+        positions: { size: 3, value: positions },
+        normals: { size: 3, value: normals },
+        texCoords: { size: 2, value: texCoords }
+      },
+      indices
+    }
+  };
+}
+
+function sampleDtmElevation(r, lng, lat) {
+  if (!r?.raw) return r?.min ?? 0;
+  const col = Math.min(r.width - 1, Math.max(0, Math.floor((lng - r.bounds[0]) / r.lngPerPixel)));
+  const row = Math.min(r.height - 1, Math.max(0, Math.floor((r.bounds[3] - lat) / r.latPerPixel)));
+  const v = r.raw[row * r.width + col];
+  if (!Number.isFinite(v) || (Number.isFinite(r.nodata) && Math.abs(v - r.nodata) < 1e-2) || v <= -9990 || v >= 1e20) {
+    return r.min;
+  }
+  return v;
+}
+
+function utmToLatLng(easting, northing, zone, southHemisphere) {
+  const a = 6378137.0;
+  const f = 1 / 298.257223563;
+  const k0 = 0.9996;
+  const e2 = 2 * f - f * f;
+  const ePrime2 = e2 / (1 - e2);
+  const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+
+  const x = easting - 500000.0;
+  const y = southHemisphere ? northing - 10000000.0 : northing;
+
+  const m = y / k0;
+  const mu = m / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * Math.pow(e2, 3) / 256));
+
+  const phi1Rad = mu + (3 * e1 / 2 - 27 * Math.pow(e1, 3) / 32) * Math.sin(2 * mu)
+    + (21 * e1 * e1 / 16 - 55 * Math.pow(e1, 4) / 32) * Math.sin(4 * mu)
+    + (151 * Math.pow(e1, 3) / 96) * Math.sin(6 * mu);
+
+  const n1 = a / Math.sqrt(1 - e2 * Math.sin(phi1Rad) * Math.sin(phi1Rad));
+  const t1 = Math.tan(phi1Rad) * Math.tan(phi1Rad);
+  const c1 = ePrime2 * Math.cos(phi1Rad) * Math.cos(phi1Rad);
+  const r1 = a * (1 - e2) / Math.pow(1 - e2 * Math.sin(phi1Rad) * Math.sin(phi1Rad), 1.5);
+  const d = x / (n1 * k0);
+
+  const lat = phi1Rad - (n1 * Math.tan(phi1Rad) / r1) * (d * d / 2
+    - (5 + 3 * t1 + 10 * c1 - 4 * c1 * c1 - 9 * ePrime2) * Math.pow(d, 4) / 24
+    + (61 + 90 * t1 + 298 * c1 + 45 * t1 * t1 - 252 * ePrime2 - 3 * c1 * c1) * Math.pow(d, 6) / 720);
+
+  const lon = ((zone - 1) * 6 - 180 + 3) * Math.PI / 180 + (d
+    - (1 + 2 * t1 + c1) * Math.pow(d, 3) / 6
+    + (5 - 2 * c1 + 28 * t1 - 3 * c1 * c1 + 8 * ePrime2 + 24 * t1 * t1) * Math.pow(d, 5) / 120) / Math.cos(phi1Rad);
+
+  return [Number((lon * 180 / Math.PI).toFixed(6)), Number((lat * 180 / Math.PI).toFixed(6))];
+}
+
+function drapeRing(ring, r, scale) {
+  const maxDist = (r.lngPerPixel || 0.0001) * 2;
+  const densified = [];
+  for (let i = 0; i < ring.length - 1; i++) {
+    const p0 = ring[i], p1 = ring[i + 1];
+    densified.push(p0);
+    const dx = p1[0] - p0[0], dy = p1[1] - p0[1];
+    const dist = Math.hypot(dx, dy);
+    if (dist > maxDist) {
+      const steps = Math.min(50, Math.ceil(dist / maxDist));
+      for (let s = 1; s < steps; s++) {
+        const t = s / steps;
+        densified.push([p0[0] + dx * t, p0[1] + dy * t]);
+      }
+    }
+  }
+  densified.push(ring[ring.length - 1]);
+
+  return densified.map(([lng, lat]) => {
+    const elev = sampleDtmElevation(r, lng, lat);
+    const z = Math.max(0, (elev - r.min) * scale) + 0.3;
+    return [lng, lat, z];
+  });
+}
+
+function getDrapedFootprints() {
+  if (state._drapedFootprintGeoJSON) return state._drapedFootprintGeoJSON;
+  const r = state.raster.dtm;
+  if (!r?.raw || !state._footprintGeoJSON) return state._footprintGeoJSON;
+  const scale = state.dtmExaggeration || 1.0;
+
+  const features = state._footprintGeoJSON.features.map(f => {
+    const g = f.geometry;
+    if (!g || !g.coordinates) return f;
+    let coords;
+    if (g.type === 'Polygon') {
+      coords = g.coordinates.map(ring => drapeRing(ring, r, scale));
+    } else if (g.type === 'MultiPolygon') {
+      coords = g.coordinates.map(poly => poly.map(ring => drapeRing(ring, r, scale)));
+    } else {
+      coords = g.coordinates;
+    }
+    return {...f, geometry: {...g, coordinates: coords}};
+  });
+  state._drapedFootprintGeoJSON = {...state._footprintGeoJSON, features};
+  return state._drapedFootprintGeoJSON;
+}
+
+function buildFootprintLayer() {
+  if (!state._footprintGeoJSON) return null;
+  const firstFeat = state._footprintGeoJSON.features?.[0];
+  if (firstFeat?.geometry?.coordinates) {
+    let testPt = firstFeat.geometry.coordinates;
+    while (Array.isArray(testPt[0])) testPt = testPt[0];
+    if (typeof testPt[0] === 'number' && typeof testPt[1] === 'number') {
+      const [lng, lat] = testPt;
+      if (Math.abs(lng) > 180 || Math.abs(lat) > 90) {
+        return null;
+      }
+    }
+  }
+  const isDtm3D = Boolean(state.showDtm && state.dtmMode === '3d' && state.raster.dtm?.raw);
+  const data = isDtm3D ? getDrapedFootprints() : state._footprintGeoJSON;
+  return new GeoJsonLayer({
+    id: isDtm3D ? 'atap-footprints-3d' : 'atap-footprints-2d',
+    data,
+    filled: true, stroked: true, extruded: false, pickable: false,
+    getFillColor: isDtm3D ? [0, 114, 178, 120] : [0, 114, 178, 60],
+    getLineColor: [0, 114, 178, 240],
+    getLineWidth: isDtm3D ? 2 : 1,
+    lineWidthMinPixels: 2
+  });
+}
+
 function buildLayers() {
   const layers = [BASEMAP];
+  if (state.showDtm && state.raster.dtm) {
+    const r = state.raster.dtm;
+    if (state.dtmMode === '3d' && r.raw) {
+      const scale = state.dtmExaggeration || 1.0;
+      const meshObj = buildRasterMesh(r, scale);
+      if (meshObj) {
+        layers.push(new SimpleMeshLayer({
+          id: 'raster-dtm-mesh',
+          data: [{}],
+          mesh: meshObj.mesh,
+          texture: r.bitmap,
+          coordinateSystem: deck.COORDINATE_SYSTEM.METER_OFFSETS,
+          coordinateOrigin: meshObj.origin,
+          getPosition: [0, 0, 0],
+          getColor: [255, 255, 255],
+          material: { ambient: 0.8, diffuse: 0.5, shininess: 8 }
+        }));
+      }
+    } else {
+      layers.push(new BitmapLayer({id:'raster-dtm', image:r.bitmap, bounds:r.bounds, opacity:0.75}));
+    }
+  }
+  if (state.showFootprints) {
+    const fl = buildFootprintLayer();
+    if (fl) layers.push(fl);
+  }
+  if (state.showDsm && state.raster.dsm) {
+    const r = state.raster.dsm;
+    if (state.dsmMode === '3d' && r.columnPoints) {
+      const scale = state.dtmExaggeration || 1.0;
+      layers.push(new ColumnLayer({
+        id: 'raster-dsm-3d',
+        data: r.columnPoints,
+        getPosition: d => d.position,
+        getElevation: d => Math.max(0, d.elevation - r.min) * scale,
+        getFillColor: d => d.color,
+        diskResolution: 4,
+        angle: Math.PI / 4,
+        radius: r.colRadiusM || 1,
+        radiusUnits: 'meters',
+        extruded: true,
+        pickable: true,
+        onHover: handleHover,
+        material: { ambient: 0.5, diffuse: 0.6 }
+      }));
+    } else {
+      layers.push(new BitmapLayer({id:'raster-dsm', image:r.bitmap, bounds:r.bounds, opacity:0.75}));
+    }
+  }
   if (!state.data) return layers;
-  layers.push(new GeoJsonLayer({
+
+  if (state.isTreeMode) {
+    const filteredPoints = getFilteredTreePoints();
+
+    // 1. Trunks (ColumnLayer) - independent
+    if (state.treeTrunks && filteredPoints.length) {
+      layers.push(new ColumnLayer({
+        id: 'tree-trunks-column',
+        data: filteredPoints,
+        getPosition: d => [d.coordinates[0], d.coordinates[1], state.treeGroundElevation ? (d.ground_z || 0) : 0],
+        getElevation: d => Math.max(0.5, d.trunk_height || 1),
+        radius: 0.35,
+        radiusUnits: 'meters',
+        diskResolution: 8,
+        getFillColor: d => {
+          if (state.treeHoverMode === 'group') {
+            const targetId = state.pinnedObjectId || state.hoveredObjectId;
+            if (targetId && (d.object_id === targetId || d.parent_id === targetId || (d.object_id && d.object_id.startsWith(targetId + '_')))) {
+              return [255, 221, 74, 255];
+            }
+          }
+          return [90, 60, 42, 240];
+        },
+        material: { ambient: 0.5, diffuse: 0.6 },
+        updateTriggers: {
+          getFillColor: [state.treeHoverMode, state.hoveredObjectId, state.pinnedObjectId]
+        },
+        pickable: true,
+        onHover: info => handleHover(info.object ? {object: {properties: info.object}, x: info.x, y: info.y} : info),
+        onClick: handleClick
+      }));
+    }
+
+    // 2. Canopy Tiers (GeoJsonLayer) - independent
+    if (state.showLod && state.treeCanopy) {
+      layers.push(new GeoJsonLayer({
+        id: 'atap-tree-canopies',
+        data: getFilteredCanopyData(),
+        extruded: true, wireframe: true, filled: true, stroked: false, pickable: true,
+        getElevation: f => f.properties.part_height_m,
+        getFillColor: f => getTreeCanopyColor(f),
+        getLineColor: [20, 60, 20, 200],
+        material: { ambient: 0.45, diffuse: 0.65, shininess: 16 },
+        updateTriggers: {
+          getFillColor: [state.treeHoverMode, state.treeColorScheme, state.hoveredPartId, state.hoveredObjectId, state.pinnedObjectId]
+        },
+        onHover: handleHover,
+        onClick: handleClick
+      }));
+    }
+
+    // 3. 3D Tree Mesh (GLB ScenegraphLayer) - independent
+    if (state.treeGlbEnabled && filteredPoints.length) {
+      if (state.treeTrunkGlbUrl) {
+        layers.push(new ScenegraphLayer({
+          id: 'tree-trunks-glb',
+          data: filteredPoints,
+          scenegraph: state.treeTrunkGlbUrl,
+          _lighting: 'pbr',
+          getPosition: d => [d.coordinates[0], d.coordinates[1], state.treeGroundElevation ? (d.ground_z || 0) : 0],
+          getScale: d => {
+            const rawTd = parseFloat(d.trunk_diameter || 0.25);
+            const td = Math.max(0.35, Math.min(rawTd * 1.5, 0.85));
+            return [td, td, Math.max(0.5, d.trunk_height || 1)];
+          },
+          getOrientation: d => [0, d.seed_yaw || 0, 0],
+          pickable: true,
+          onHover: info => handleHover(info.object ? {object: {properties: info.object}, x: info.x, y: info.y} : info)
+        }));
+      }
+      if (state.treeCanopyGlbUrl) {
+        layers.push(new ScenegraphLayer({
+          id: 'tree-canopy-glb',
+          data: filteredPoints,
+          scenegraph: state.treeCanopyGlbUrl,
+          _lighting: 'pbr',
+          getPosition: d => [d.coordinates[0], d.coordinates[1], (state.treeGroundElevation ? (d.ground_z || 0) : 0) + (d.trunk_height || 0)],
+          getScale: d => [d.crown_diameter || 3.5, d.crown_diameter || 3.5, d.crown_height || 3.5],
+          getOrientation: d => [0, d.seed_yaw || 0, 0],
+          pickable: true,
+          onHover: info => handleHover(info.object ? {object: {properties: info.object}, x: info.x, y: info.y} : info)
+        }));
+      }
+    }
+
+    return layers;
+  }
+
+  if (state.showLod) layers.push(new GeoJsonLayer({
     id: 'atap-parts',
     data: renderData(),
     extruded: true, wireframe: true, filled: true, stroked: false, pickable: true,
@@ -803,20 +1890,81 @@ const tooltip = $('tooltip');
 function handleHover(info) {
   const f = info.object;
   if (!f) { clearHover(); return; }
-  if (state.hoveredPartId === f.properties.part_id && tooltip.style.display === 'block') {
+
+  if (f.elevation != null && !f.properties) {
+    const isDsm = info.layer?.id?.includes('dsm');
+    const r = isDsm ? state.raster.dsm : state.raster.dtm;
+    const elev = Number(f.elevation);
+    const rel = elev - (r?.min ?? 0);
+    const lng = f.position ? f.position[0].toFixed(6) : '—';
+    const lat = f.position ? f.position[1].toFixed(6) : '—';
+    const ps = r?.pixelSizeM;
+    const resM = ps ? `${ps.toFixed(3)} m/px` : '—';
+    const ppm = ps ? `${(1 / ps).toFixed(2)} px/m` : '—';
+    const ppm2 = ps ? `${Math.round(1 / (ps * ps)).toLocaleString()} px/m²` : '—';
+    tooltip.innerHTML = `
+      <div class="tooltip-title">${isDsm ? 'DSM Surface' : 'DTM Terrain'}</div>
+      <div class="tooltip-sub">Lon: ${lng} · Lat: ${lat}</div>
+      <div class="tooltip-section">Elevation</div>
+      ${row('Native elevation (Z)', `${elev.toFixed(2)} m`)}
+      ${row('Relative from min ground', `+${rel.toFixed(2)} m`)}
+      ${row('Area min / max range', `${(r?.min ?? 0).toFixed(2)} / ${(r?.max ?? 0).toFixed(2)} m`)}
+      <div class="tooltip-section">Raster Density</div>
+      ${row('Spatial resolution (GSD)', resM)}
+      ${row('Linear density', ppm)}
+      ${row('Areal density', ppm2)}
+      ${row('Native dimensions', r?.origWidth ? `${r.origWidth.toLocaleString()} × ${r.origHeight.toLocaleString()} px` : '—')}
+      ${r?.downsampled ? row('Display sampling', `${r.downsampleRatio}× (${r.width.toLocaleString()} × ${r.height.toLocaleString()} px)`) : ''}
+    `;
+    placeTooltip(info);
+    return;
+  }
+
+  if (state.isTreeMode) {
+    const p = f.properties || f;
+    const isGroup = state.treeHoverMode === 'group';
+    const objId = p.object_id || p.parent_id;
+    if (isGroup) {
+      if (state.hoveredObjectId === objId && tooltip.style.display === 'block') {
+        placeTooltip(info); return;
+      }
+    } else {
+      if (state.hoveredPartId === p.part_id && tooltip.style.display === 'block') {
+        placeTooltip(info); return;
+      }
+    }
+    state.hoveredPartId = p.part_id;
+    state.hoveredObjectId = objId;
+    tooltip.innerHTML = isGroup ? treeGroupTooltip(objId, f) : treeTooltip(f);
+    placeTooltip(info);
+    updateLayers();
+    return;
+  }
+
+  if (state.hoveredPartId === f.properties?.part_id && tooltip.style.display === 'block') {
     placeTooltip(info); return;
   }
-  state.hoveredPartId = f.properties.part_id;
-  state.hoveredObjectId = f.properties.object_id;
-  tooltip.innerHTML = state.hoverMode === 'building'
-    ? buildingTooltip(state.hoveredObjectId) : partTooltip(f);
+  state.hoveredPartId = f.properties?.part_id;
+  state.hoveredObjectId = f.properties?.object_id;
+  tooltip.innerHTML = state.hoverMode === 'building' ? buildingTooltip(state.hoveredObjectId) : partTooltip(f);
   placeTooltip(info);
   updateLayers();
 }
 
 function handleClick(info) {
-  if (state.hoverMode !== 'building' || !info.object) return;
-  state.pinnedObjectId = info.object.properties.object_id;
+  if (!info.object) return;
+  const p = info.object.properties || info.object;
+  if (state.isTreeMode) {
+    if (state.treeHoverMode === 'group') {
+      const objId = p.object_id || p.parent_id;
+      state.pinnedObjectId = state.pinnedObjectId === objId ? null : objId;
+      state.hoveredObjectId = state.pinnedObjectId;
+      updateLayers();
+    }
+    return;
+  }
+  if (state.hoverMode !== 'building') return;
+  state.pinnedObjectId = p.object_id;
   state.hoveredObjectId = state.pinnedObjectId;
   renderHierarchy();
   updateLayers();
@@ -850,6 +1998,85 @@ function groundLabel() {
 
 function reasonText(code) {
   return REASONS[code] ? `${REASONS[code]}` : (code ?? '—');
+}
+
+function treeGroupTooltip(objectId, f) {
+  const p = f.properties || f;
+  const targetId = String(objectId || p.object_id || p.parent_id || p.id || p.tree_id || '');
+  const allParts = (state.data?.features || []).filter(feat => {
+    const fp = feat.properties || {};
+    const oId = String(fp.object_id || fp.id || '');
+    const pId = String(fp.parent_id || '');
+    return oId === targetId || pId === targetId || (targetId && oId.startsWith(targetId + '_'));
+  });
+
+  const partCount = allParts.length || 1;
+  const pointH = Number(p.height_lidar_m ?? p.top_height_agl_m ?? p.height ?? 0);
+  const partHeights = allParts.map(x => Number(x.properties?.top_height_agl_m || x.properties?.height_lidar_m || 0));
+  const maxH = Math.max(...(partHeights.length ? partHeights : [0]), pointH);
+  const totalArea = allParts.reduce((acc, x) => acc + Number(x.properties?.area_m2 || 0), 0);
+  const carbon = Number(p.carbon_kg || 0);
+  const co2 = Number(p.co2e_kg || 0);
+  const agb = Number(p.agb_kg || 0);
+  const dbh = Number(p.dbh_cm || 0);
+  const crDia = Number(p.crown_diameter_m || p.crown_diameter || 0);
+  const gElev = Number(p.ground_elevation_m ?? p.ground_z ?? 0);
+
+  return `
+    <div class="tooltip-title">${esc(targetId || 'Tree Group')}</div>
+    <div class="tooltip-sub">${partCount} Canopy Tier${partCount > 1 ? 's' : ''} (LoD 1.3) · Parent: ${esc(p.parent_id || p.object_id || '—')}</div>
+
+    <div class="tooltip-section">Tree Group Metrics</div>
+    ${row('Peak Canopy Height', `${num(maxH)} m`)}
+    ${row('Canopy Tiers Count', `${partCount} tiers`)}
+    ${row('Crown Diameter', `${num(crDia)} m`)}
+    ${totalArea > 0 ? row('Total Tier Footprint', `${num(totalArea)} m²`) : ''}
+    ${row('Ground Elevation (DTM)', `${num(gElev)} m`)}
+
+    <div class="tooltip-section">Silviculture &amp; Carbon</div>
+    ${row('Trunk Height (35%)', `${num(maxH * 0.35)} m`)}
+    ${row('Estimated DBH', `${num(dbh, 1)} cm`)}
+    ${row('Above-Ground Biomass', `${num(agb, 1)} kg`)}
+    ${row('Pure Carbon Stock', `${num(carbon, 1)} kg C`)}
+    ${row('CO₂e Potential', `${num(co2, 1)} kg CO₂e`)}
+    <div class="hint" style="margin-top:6px;font-size:10px">Click to pin highlight on this tree group.</div>
+  `;
+}
+
+function treeTooltip(f) {
+  const p = f.properties || f;
+  const h = Number(p.height_lidar_m || p.top_height_agl_m || p.height || 0);
+  const crDia = Number(p.crown_diameter_m || p.crown_diameter || 0);
+  const trH = Number(p.trunk_height || (h * 0.35));
+  const trDia = Number(p.trunk_diameter || 0.35);
+  const dbh = Number(p.dbh_cm || 0);
+  const agb = Number(p.agb_kg || 0);
+  const carb = Number(p.carbon_kg || 0);
+  const co2 = Number(p.co2e_kg || 0);
+  const gElev = Number(p.ground_elevation_m ?? p.ground_z ?? 0);
+
+  return `
+    <div class="tooltip-title">${esc(p.part_id || p.tree_id || 'Tree')}</div>
+    <div class="tooltip-sub">${esc(p.object_id || 'Tree')} · ${p.part_level != null ? `Level ${p.part_level} · LoD 1.3 Canopy` : '3D Tree Model Point'}</div>
+
+    <div class="tooltip-section">Canopy</div>
+    ${row('Total Height', `${num(h)} m`)}
+    ${p.part_height_m != null ? row('Tier Height', `${num(p.part_height_m)} m`) : ''}
+    ${p.base_height_agl_m != null ? row('Base Height (AGL)', `${num(p.base_height_agl_m)} m`) : ''}
+    ${row('Crown Diameter', `${num(crDia)} m`)}
+    ${p.area_m2 != null ? row('Canopy Area', `${num(p.area_m2)} m²`) : ''}
+    ${row('Ground Elevation', `${num(gElev)} m`)}
+
+    <div class="tooltip-section">Trunk</div>
+    ${row('Trunk Height', `${num(trH)} m`)}
+    ${row('Estimated DBH', `${num(dbh, 1)} cm`)}
+    ${row('Trunk Diameter', `${num(trDia * 100, 1)} cm`)}
+
+    <div class="tooltip-section">Carbon &amp; Biomass</div>
+    ${row('Above-Ground Biomass', `${num(agb, 1)} kg`)}
+    ${row('Carbon Stock', `${num(carb, 1)} kg C`)}
+    ${row('CO₂e Potential', `${num(co2, 1)} kg CO₂e`)}
+  `;
 }
 
 function partTooltip(f) {
@@ -1013,6 +2240,84 @@ function applyDataset(fc, label) {
   state.hoveredObjectId = null;
   tooltip.style.display = 'none';
 
+  const isTree = Boolean(
+    fc.atap?.mode === 'tree' ||
+    state.params.mode === 'tree' ||
+    fc.features?.[0]?.properties?.carbon_kg != null
+  );
+  state.isTreeMode = isTree;
+  const bldgControls = $('building-display-controls');
+  const treeControls = $('tree-display-controls');
+  if (bldgControls) bldgControls.style.display = isTree ? 'none' : 'block';
+  if (treeControls) treeControls.style.display = isTree ? 'block' : 'none';
+
+  if (isTree) {
+    state.treeHoverMode = state.treeHoverMode || 'tier';
+    const isGroup = state.treeHoverMode === 'group';
+    if ($('mode-tree-tier')) {
+      $('mode-tree-tier').classList.toggle('active', !isGroup);
+      $('mode-tree-tier').setAttribute('aria-pressed', String(!isGroup));
+    }
+    if ($('mode-tree-group')) {
+      $('mode-tree-group').classList.toggle('active', isGroup);
+      $('mode-tree-group').setAttribute('aria-pressed', String(isGroup));
+    }
+    if ($('tree-canopy-toggle')) $('tree-canopy-toggle').checked = Boolean(state.treeCanopy);
+    if ($('tree-trunk-toggle')) $('tree-trunk-toggle').checked = Boolean(state.treeTrunks);
+    if ($('tree-ground-toggle')) $('tree-ground-toggle').checked = Boolean(state.treeGroundElevation);
+    if ($('tree-glb-toggle')) $('tree-glb-toggle').checked = Boolean(state.treeGlbEnabled);
+    if ($('tree-glb-options')) $('tree-glb-options').style.display = state.treeGlbEnabled ? 'block' : 'none';
+    if ($('tree-trunk-model-status')) {
+      $('tree-trunk-model-status').textContent = state._customTrunkName
+        ? `Custom: ${state._customTrunkName}`
+        : 'Default (tree-01)';
+    }
+    if ($('tree-canopy-model-status')) {
+      $('tree-canopy-model-status').textContent = state._customCanopyName
+        ? `Custom: ${state._customCanopyName}`
+        : 'Default (tree-01)';
+    }
+    updateTreeFilterLabels();
+
+    if (!state.pointsData || !state.pointsData.features) {
+      state.treePointsList = extractTreePoints(fc);
+    } else {
+      state.treePointsList = (state.pointsData.features || []).map((f, i) => {
+        const p = f.properties || {};
+        const coords = f.geometry?.coordinates || [0, 0];
+        const h = Number(p.height_lidar_m ?? p.height ?? p.top_height_agl_m ?? 5);
+        const crDia = Number(p.crown_diameter ?? p.crown_diameter_m ?? 3.5);
+        const trH = Number(p.trunk_height ?? (h * 0.35));
+        const dbh = Number(p.dbh_cm ?? (0.55 * Math.pow(h, 0.92) * Math.pow(crDia, 0.42)));
+        const trDia = Number(p.trunk_diameter ?? p.trunk_diameter_m ?? (dbh ? Math.max(0.15, dbh / 100) : 0.35));
+        const objId = p.object_id ?? p.id ?? p.tree_id ?? `T${i+1}`;
+        return {
+          ...p,
+          coordinates: coords,
+          object_id: objId,
+          parent_id: p.parent_id ?? '',
+          tree_id: objId,
+          part_id: p.part_id ?? `${objId}-P00`,
+          ground_z: Number(p.ground_z ?? p.ground_elevation_m ?? 0),
+          ground_elevation_m: Number(p.ground_elevation_m ?? p.ground_z ?? 0),
+          height: h,
+          height_lidar_m: h,
+          top_height_agl_m: h,
+          trunk_height: trH,
+          trunk_diameter: trDia,
+          crown_height: Number(p.crown_height ?? Math.max(0.5, h - trH)),
+          crown_diameter: crDia,
+          crown_diameter_m: crDia,
+          dbh_cm: dbh,
+          agb_kg: Number(p.agb_kg ?? 0),
+          carbon_kg: Number(p.carbon_kg ?? 0),
+          co2e_kg: Number(p.co2e_kg ?? 0),
+          seed_yaw: (i * 47) % 360
+        };
+      });
+    }
+  }
+
   const problems = validateDataset(fc);
   state.bounds = computeBounds(fc);
 
@@ -1022,6 +2327,8 @@ function applyDataset(fc, label) {
   renderHierarchy();
   renderArtifacts();
   updateLayers();
+  updateRasterNotice('dtm');
+  updateRasterNotice('dsm');
   fitBounds(state.bounds);
 
   $('view-empty').style.display = 'none';
@@ -1029,7 +2336,9 @@ function applyDataset(fc, label) {
   $('legend').classList.add('show');
 
   const profile = fc.atap?.profile_version;
-  if (problems.length) setChip('bad', `${problems.length} INVARIANT WARNING${problems.length>1?'S':''}`);
+  if (isTree) {
+    setChip('ok', 'TREE LoD 1.3 · DSM − DTM');
+  } else if (problems.length) setChip('bad', `${problems.length} INVARIANT WARNING${problems.length>1?'S':''}`);
   else if (!fc.atap) setChip('warn', 'NO ATAP HEADER');
   else if (profile !== EXPECTED_PROFILE) setChip('warn', `PROFILE ${profile} · VIEWER EXPECTS ${EXPECTED_PROFILE}`);
   else setChip('ok', 'TERRAIN-NORMALIZED · DSM − DTM');
@@ -1070,6 +2379,7 @@ function renderHeader() {
   };
   el.innerHTML = `
     ${rowc('Engine / profile', `${a.engine_version ?? '—'} / ${a.profile_version ?? '—'}`)}
+    ${rowc('Engine mode', state.isTreeMode ? 'tree (Trees & Carbon)' : (p.mode || 'building'))}
     ${rowc('Started', proc.started_at_utc ? new Date(proc.started_at_utc).toLocaleString() : '—')}
     ${rowc('Duration', proc.duration_s != null ? `${Number(proc.duration_s).toFixed(1)} s` : '—')}
     ${ex.workers != null ? rowc('Workers', ex.workers) : ''}
@@ -1093,7 +2403,61 @@ function renderHeader() {
 }
 
 function renderStats(problems) {
-  const fc = state.data, s = fc.summary || {};
+  if (!state.data) return;
+  const fc = state.data, s = fc.summary || state.summaryData || {};
+  if (state.isTreeMode) {
+    const totalTrees = s.total_trees ?? s.tree_count ?? (state.treePointsList ? state.treePointsList.length : state.byObject.size);
+    const totalParts = fc.features.length;
+
+    const filteredPoints = getFilteredTreePoints();
+    const filteredCanopy = getFilteredCanopyData();
+    const filteredParts = filteredCanopy.features || [];
+
+    const minH = state.treeFilterMinHeight ?? 0, maxH = state.treeFilterMaxHeight ?? 45;
+    const minD = state.treeFilterMinDiameter ?? 0, maxD = state.treeFilterMaxDiameter ?? 30;
+    const minC = state.treeFilterMinCarbon ?? 0, maxC = state.treeFilterMaxCarbon ?? 2000;
+    const isFiltering = (minH > 0 || maxH < 45 || minD > 0 || maxD < 30 || minC > 0 || maxC < 2000);
+
+    const activeTrees = filteredPoints.length;
+    const activeParts = filteredParts.length;
+
+    const top = activeTrees ? Math.max(...filteredPoints.map(f => Number(f.height || f.height_lidar_m || 0))) : 0;
+    const meanH = activeTrees ? (filteredPoints.reduce((a, f) => a + Number(f.height || f.height_lidar_m || 0), 0) / activeTrees) : 0;
+    const totC = activeTrees ? (filteredPoints.reduce((a, f) => a + Number(f.carbon_kg || 0), 0) / 1000) : 0;
+    const totCo2 = activeTrees ? (filteredPoints.reduce((a, f) => a + Number(f.co2e_kg || 0), 0) / 1000) : 0;
+
+    const totalC_all = s.total_carbon_mg ?? (state.treePointsList ? (state.treePointsList.reduce((a, f) => a + Number(f.carbon_kg || 0), 0) / 1000) : (fc.features.reduce((a, f) => a + Number(f.properties.carbon_kg || 0), 0) / 1000));
+
+    const treeStat = isFiltering
+      ? `<b>${intFmt(activeTrees)}</b><small>trees <span style="opacity:0.65">(${intFmt(totalTrees)})</span></small>`
+      : `<b>${intFmt(activeTrees)}</b><small>trees (ITD)</small>`;
+
+    const partStat = isFiltering
+      ? `<b>${intFmt(activeParts)}</b><small>tiers <span style="opacity:0.65">(${intFmt(totalParts)})</span></small>`
+      : `<b>${intFmt(activeParts)}</b><small>canopy tiers</small>`;
+
+    const carbonStat = isFiltering
+      ? `<b>${num(totC, 1)} Mg</b><small>C <span style="opacity:0.65">(${num(totalC_all, 1)} Mg)</span></small>`
+      : `<b>${num(totC, 1)} Mg</b><small>C stock (Ton C)</small>`;
+
+    $('stats').innerHTML = `
+      <div class="stat">${treeStat}</div>
+      <div class="stat">${partStat}</div>
+      <div class="stat"><b>${n1(top)} m</b><small>highest apex</small></div>
+      <div class="stat"><b>${n1(meanH)} m</b><small>mean height</small></div>
+      <div class="stat">${carbonStat}</div>
+      <div class="stat"><b>${num(totCo2, 1)} Mg</b><small>CO₂e potential</small></div>
+    `;
+
+    $('result-notice').innerHTML = `
+      <div class="notice ok" style="font-size:11.5px;padding:8px 10px;margin-bottom:8px">
+        <svg class="ico sm"><use href="#i-check"/></svg>
+        <span><b>Tree Mode:</b> LoD 1.3 canopy tiers and carbon stock.${isFiltering ? ` · <b>Filtered: ${intFmt(activeTrees)} of ${intFmt(totalTrees)} trees shown.</b>` : ''}</span>
+      </div>
+    `;
+    return;
+  }
+
   const buildings = s.building_count ?? state.byObject.size;
   const top = fc.features.length ? Math.max(...fc.features.map(f => f.properties.top_height_agl_m)) : 0;
   const vol = s.total_volume_m3 ?? fc.features.reduce((a,f) => a + Number(f.properties.volume_m3 || 0), 0);
@@ -1116,18 +2480,41 @@ function renderStats(problems) {
 }
 
 function renderSkipped() {
-  const list = state.data.summary?.skipped_buildings || [];
+  const isTree = state.isTreeMode;
+  const list = state.data.summary?.skipped_trees || state.data.summary?.skipped_buildings || [];
   const el = $('skipped-section');
   if (!list.length) { el.innerHTML = ''; return; }
+  const label = isTree ? 'Filtered artifacts / non-trees' : 'Skipped buildings';
+  const entityName = isTree ? 'non-tree artifacts' : 'buildings';
+  const propName = isTree ? 'summary.skipped_trees' : 'summary.skipped_buildings';
   const shown = list.slice(0, 300);
+
+  if (isTree) {
+    el.innerHTML = `
+      <details style="margin-top:14px;border:1px solid var(--border);border-radius:6px;padding:8px 10px;background:var(--card-bg, rgba(255,255,255,0.02))">
+        <summary style="cursor:pointer;font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:space-between;color:var(--text-dim)">
+          <span>Audit: ${intFmt(list.length)} filtered polygons</span>
+          <small style="font-weight:normal;opacity:0.7">details ▾</small>
+        </summary>
+        <div class="skip-list" style="margin-top:8px">
+          ${shown.map(s => `<div class="skip-item"><b>${esc(s.object_id)}</b>
+            <span title="${esc(s.reason)}">${esc(SKIP_REASONS[s.reason] || s.reason)}</span></div>`).join('')}
+        </div>
+        ${list.length > shown.length ? `<p class="hint" style="margin-top:6px">…and ${intFmt(list.length - shown.length)} more in <code>${propName}</code>.</p>` : ''}
+        <p class="hint" style="margin-top:6px;font-size:10px">Filtered out during LiDAR audit (flat grass &lt;0.2m, rooftop AC units, or edge nodata). No 3D model generated.</p>
+      </details>
+    `;
+    return;
+  }
+
   el.innerHTML = `
-    <div class="section-label">Skipped buildings · ${intFmt(list.length)}<div class="rule"></div></div>
+    <div class="section-label">${label} · ${intFmt(list.length)}<div class="rule"></div></div>
     <div class="skip-list">
       ${shown.map(s => `<div class="skip-item"><b>${esc(s.object_id)}</b>
         <span title="${esc(s.reason)}">${esc(SKIP_REASONS[s.reason] || s.reason)}</span></div>`).join('')}
     </div>
-    ${list.length > shown.length ? `<p class="hint">…and ${intFmt(list.length - shown.length)} more in <code>summary.skipped_buildings</code>.</p>` : ''}
-    <p class="hint">Skipped buildings have no parts in the output. They are listed so nothing disappears silently.</p>`;
+    ${list.length > shown.length ? `<p class="hint">…and ${intFmt(list.length - shown.length)} more in <code>${propName}</code>.</p>` : ''}
+    <p class="hint">Skipped ${entityName} have no 3D parts in the output. They are filtered out by safety thresholds so nothing disappears silently.</p>`;
 }
 
 function renderHierarchy() {
@@ -1191,17 +2578,90 @@ function renderHierarchy() {
 
 function renderArtifacts() {
   const el = $('artifacts');
+  const isTree = state.isTreeMode;
   if (!state.activeRun) {
-    el.innerHTML = `<p class="hint" style="margin:0">Opened from a local file, no server artifacts.</p>`;
+    if (isTree) {
+      el.innerHTML = `
+        <div class="artifact-group">
+          <div class="artifact-group-hdr">
+            <span class="artifact-group-title">ATAP · Canopy Tiers</span>
+            <a class="artifact-guide-btn" href="/docs/tree_viewer_guide.md#1-canopy-tiers-geojson-lod-13-polygons" target="_blank" rel="noopener" title="Deck.gl integration guide for Canopy Tiers">
+              <svg class="ico xs" style="width:11px;height:11px"><use href="#i-info"/></svg> Guide
+            </a>
+          </div>
+          <p class="hint" style="margin:2px 0 6px 0">Opened from local file. Canopy tiers are active in viewer.</p>
+        </div>
+        <div class="artifact-group">
+          <div class="artifact-group-hdr">
+            <span class="artifact-group-title">GLB · 3D Mesh</span>
+            <a class="artifact-guide-btn" href="/docs/tree_viewer_guide.md#2-glb-viewer-scenegraphlayer--columnlayer" target="_blank" rel="noopener" title="Deck.gl integration guide for GLB Instancing">
+              <svg class="ico xs" style="width:11px;height:11px"><use href="#i-info"/></svg> Guide
+            </a>
+          </div>
+          <a class="history-item" href="/models/tree_trunk.glb" download="tree_trunk.glb">
+            <svg class="ico"><use href="#i-download"/></svg>
+            <span class="hi-text"><b>Sample Trunk GLB</b><small>tree_trunk.glb · 1×1×1m Z-up normalized</small></span>
+          </a>
+          <a class="history-item" href="/models/tree_canopy.glb" download="tree_canopy.glb">
+            <svg class="ico"><use href="#i-download"/></svg>
+            <span class="hi-text"><b>Sample Canopy GLB</b><small>tree_canopy.glb · 1×1×1m Z-up normalized</small></span>
+          </a>
+        </div>`;
+    } else {
+      el.innerHTML = `<p class="hint" style="margin:0">Opened from a local file, no server artifacts.</p>`;
+    }
     return;
   }
   const base = `${state.apiBase}/api/jobs/${state.activeRun}/artifacts`;
-  const kinds = [['output','Result GeoJSON','EPSG:4326 · parts + metadata'],['log','Run log','engine messages']];
-  el.innerHTML = kinds.map(([k,label,sub]) =>
-    `<a class="history-item" href="${base}/${k}" download>
-       <svg class="ico"><use href="#i-download"/></svg>
-       <span class="hi-text"><b>${label}</b><small>${sub}</small></span>
-     </a>`).join('');
+  if (isTree) {
+    const itemHtml = (kind, label, sub) => `
+      <a class="history-item" href="${base}/${kind}" download>
+        <svg class="ico"><use href="#i-download"/></svg>
+        <span class="hi-text"><b>${label}</b><small>${sub}</small></span>
+      </a>`;
+
+    el.innerHTML = `
+      <div class="artifact-group">
+        <div class="artifact-group-hdr">
+          <span class="artifact-group-title">ATAP · Canopy Tiers</span>
+          <a class="artifact-guide-btn" href="/docs/tree_viewer_guide.md#1-canopy-tiers-geojson-lod-13-polygons" target="_blank" rel="noopener" title="Deck.gl integration guide for Canopy Tiers">
+            <svg class="ico xs" style="width:11px;height:11px"><use href="#i-info"/></svg> Guide
+          </a>
+        </div>
+        ${itemHtml('output', 'Canopy Tiers GeoJSON', 'EPSG:4326 · LoD 1.3 canopy parts')}
+      </div>
+
+      <div class="artifact-group">
+        <div class="artifact-group-hdr">
+          <span class="artifact-group-title">GLB · 3D Mesh</span>
+          <a class="artifact-guide-btn" href="/docs/tree_viewer_guide.md#2-glb-viewer-scenegraphlayer--columnlayer" target="_blank" rel="noopener" title="Deck.gl integration guide for GLB Instancing">
+            <svg class="ico xs" style="width:11px;height:11px"><use href="#i-info"/></svg> Guide
+          </a>
+        </div>
+        ${itemHtml('points', 'Tree Points GeoJSON', 'EPSG:4326 · 3D tree coordinates & metrics')}
+        ${itemHtml('glb_trunk', 'Trunk GLB', 'tree_trunk.glb · 1×1×1m Z-up normalized')}
+        ${itemHtml('glb_canopy', 'Canopy GLB', 'tree_canopy.glb · 1×1×1m Z-up normalized')}
+      </div>
+
+      <div class="artifact-group" style="margin-bottom:0">
+        <div class="artifact-group-hdr">
+          <span class="artifact-group-title">Summary &amp; Audit</span>
+        </div>
+        ${itemHtml('summary', 'Summary KPI Report', 'JSON · carbon stock & validation stats')}
+        ${itemHtml('log', 'Run log', 'engine execution & progress messages')}
+      </div>
+    `;
+  } else {
+    const kinds = [
+      ['output', 'Result GeoJSON', 'EPSG:4326 · parts + metadata'],
+      ['log', 'Run log', 'engine messages']
+    ];
+    el.innerHTML = kinds.map(([k,label,sub]) =>
+      `<a class="history-item" href="${base}/${k}" download>
+         <svg class="ico"><use href="#i-download"/></svg>
+         <span class="hi-text"><b>${label}</b><small>${sub}</small></span>
+       </a>`).join('');
+  }
 }
 
 function setStatusSummary(label) {
@@ -1289,8 +2749,9 @@ function refreshIdOptions(keys = []) {
 }
 
 function mountParams() {
-  for (const g of ['core','terrain','geom','out','exec']) {
-    $(`params-${g}`).innerHTML = PARAMS.filter(p => p.group === g).map(paramControl).join('');
+  for (const g of ['core','terrain','geom','out','exec','tree']) {
+    const el = $(`params-${g}`);
+    if (el) el.innerHTML = PARAMS.filter(p => p.group === g).map(paramControl).join('');
   }
   for (const def of PARAMS) {
     const el = $(`p-${def.key}`);
@@ -1322,6 +2783,10 @@ function mountParams() {
 
 function setParam(key, value) {
   const def = PARAMS.find(p => p.key === key), el = $(`p-${key}`);
+  if (!def || !el) {
+    state.params[key] = value;
+    return;
+  }
   if (def.key === 'id_field') {
     state.params.id_field = value || '';
     refreshIdOptions(state.footprintInfo?.keys || []);
@@ -1350,7 +2815,7 @@ function syncDependencies() {
 }
 
 function collectParams() {
-  const out = {};
+  const out = { mode: state.params.mode || state.runMode || 'building' };
   for (const def of PARAMS) {
     let v = state.params[def.key];
     if (def.type === 'chips') { out[def.key] = [...v]; continue; }
@@ -1375,6 +2840,20 @@ const FILE_SLOTS = [
    title:'DTM', note:'GeoTIFF · bare-ground heights'}
 ];
 
+function getSlotTitle(cfg) {
+  if (cfg.slot === 'footprint') {
+    return state.params?.mode === 'tree' ? 'Tree footprint' : 'Building footprint';
+  }
+  return cfg.title;
+}
+
+function getSlotNote(cfg) {
+  if (cfg.slot === 'footprint') {
+    return state.params?.mode === 'tree' ? 'GeoJSON · canopy cluster outlines' : 'GeoJSON · authoritative outlines';
+  }
+  return cfg.note;
+}
+
 function humanSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1048576) return `${(bytes/1024).toFixed(0)} KB`;
@@ -1392,17 +2871,19 @@ function renderSlot(cfg) {
   const file = state.files[cfg.slot];
   const limit = uploadLimitBytes();
   const tooLarge = Boolean(file && limit && file.size > limit);
+  const title = getSlotTitle(cfg);
+  const note = getSlotNote(cfg);
   el.classList.toggle('filled', Boolean(file) && !tooLarge);
   el.classList.toggle('too-large', tooLarge);
   el.classList.toggle('required-missing', !file);
   el.innerHTML = file
     ? `<span class="drop-ico"><svg class="ico"><use href="#i-${tooLarge ? 'alert' : 'check'}"/></svg></span>
-       <span class="drop-text"><b>${esc(cfg.title)}</b><small>${esc(file.name)} · ${humanSize(file.size)}${
+       <span class="drop-text"><b>${esc(title)}</b><small>${esc(file.name)} · ${humanSize(file.size)}${
          tooLarge ? ` · over the ${state.service.max_upload_mb} MB limit` : ''}</small></span>
        <span class="drop-clear" data-clear="${cfg.slot}" role="button" tabindex="0" aria-label="Remove file">
          <svg class="ico sm"><use href="#i-x"/></svg></span>`
     : `<span class="drop-ico"><svg class="ico"><use href="#i-${cfg.icon}"/></svg></span>
-       <span class="drop-text"><b>${esc(cfg.title)}</b><small>${esc(cfg.note)} · click or drop</small></span>
+       <span class="drop-text"><b>${esc(title)}</b><small>${esc(note)} · click or drop</small></span>
        <span class="drop-clear"><svg class="ico sm"><use href="#i-upload"/></svg></span>`;
   refreshRunButton();
 }
@@ -1410,6 +2891,17 @@ function renderSlot(cfg) {
 function setFile(cfg, file) {
   state.files[cfg.slot] = file;
   state.statusSticky = false;
+  if (cfg.slot === 'dtm' || cfg.slot === 'dsm') {
+    state.raster[cfg.slot] = null;
+    updateRasterNotice(cfg.slot);
+    if (file && ((cfg.slot === 'dtm' && state.showDtm) || (cfg.slot === 'dsm' && state.showDsm))) {
+      decodeRaster(cfg.slot).then(() => {
+        updateRasterNotice(cfg.slot);
+        updateLayers();
+      });
+    }
+  }
+  if (cfg.slot === 'footprint') state._footprintGeoJSON = null;
   renderSlot(cfg);
   if (cfg.slot === 'footprint') inspectFootprint(file);
 }
@@ -1441,6 +2933,7 @@ function mountFileSlots() {
    before uploading: missing/duplicate IDs and a wrong working CRS. */
 async function inspectFootprint(file) {
   state.footprintInfo = null;
+  state._footprintGeoJSON = null;
   if (!file) {
     setParam('id_field', '');
     setParam('keep_properties', []);
@@ -1457,7 +2950,7 @@ async function inspectFootprint(file) {
     if (!Array.isArray(feats)) throw new Error('not a GeoJSON Feature or FeatureCollection');
 
     const crsName = doc.crs?.properties?.name || null;
-    const geographic = !crsName || /CRS84|EPSG:?:?4326/i.test(crsName);
+    let geographic = !crsName || /CRS84|EPSG:?:?4326/i.test(crsName);
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, noGeom = 0, nonPoly = 0;
     const walk = c => {
       if (typeof c[0] === 'number') {
@@ -1470,14 +2963,53 @@ async function inspectFootprint(file) {
       const g = f.geometry;
       if (!g) noGeom++;
       else if (g.type !== 'Polygon' && g.type !== 'MultiPolygon') nonPoly++;
-      else if (geographic) walk(g.coordinates);
+      else walk(g.coordinates);
       for (const k of Object.keys(f.properties || {})) keys.add(k);
     }
+
+    let isLatLon = (minX >= -180.1 && maxX <= 180.1 && minY >= -90.1 && maxY <= 90.1);
+    let activeFeatures = feats;
+
+    // If not lat/lon, attempt to reproject UTM to WGS84 for deck.gl
+    if (!isLatLon) {
+      geographic = false;
+      const utmMatch = /32([67])(\d{2})/i.exec(crsName || '')
+        || /32([67])(\d{2})/i.exec(state.params?.working_crs || '')
+        || /32([67])(\d{2})/i.exec(state.data?.processing?.working_crs || '');
+      if (utmMatch) {
+        const isSouth = utmMatch[1] === '7';
+        const zone = parseInt(utmMatch[2], 10);
+        const reprojectCoords = c => {
+          if (typeof c[0] === 'number' && typeof c[1] === 'number') {
+            return utmToLatLng(c[0], c[1], zone, isSouth);
+          }
+          return c.map(reprojectCoords);
+        };
+        activeFeatures = feats.map(f => {
+          if (!f.geometry || !f.geometry.coordinates) return f;
+          return {
+            ...f,
+            geometry: {
+              ...f.geometry,
+              coordinates: reprojectCoords(f.geometry.coordinates)
+            }
+          };
+        });
+        minX = Infinity; minY = Infinity; maxX = -Infinity; maxY = -Infinity;
+        for (const f of activeFeatures) {
+          if (f.geometry?.coordinates) walk(f.geometry.coordinates);
+        }
+        isLatLon = (minX >= -180.1 && maxX <= 180.1 && minY >= -90.1 && maxY <= 90.1);
+        if (isLatLon) geographic = true;
+      }
+    }
+
     const info = {
       status:'ok', count: feats.length, noGeom, nonPoly,
       props: feats.map(f => f.properties || {}), keys: [...keys].sort(),
       crsName, geographic, fieldCache: Object.create(null)
     };
+    state._footprintGeoJSON = {type:'FeatureCollection', features: activeFeatures};
     if (geographic && Number.isFinite(minX)) {
       const lon = (minX + maxX) / 2, lat = (minY + maxY) / 2;
       const zone = Math.min(60, Math.max(1, Math.floor((lon + 180) / 6) + 1));
@@ -1551,11 +3083,11 @@ function renderFootprintInfo() {
 }
 
 function runBlocker() {
-  const missing = FILE_SLOTS.filter(s => !state.files[s.slot]).map(s => s.title);
+  const missing = FILE_SLOTS.filter(s => !state.files[s.slot]).map(s => getSlotTitle(s));
   if (missing.length) return `Missing: ${missing.join(', ')}.`;
   const limit = uploadLimitBytes();
   const big = FILE_SLOTS.find(s => limit && state.files[s.slot].size > limit);
-  if (big) return `${big.title} is over the server upload limit (${state.service.max_upload_mb} MB).`;
+  if (big) return `${getSlotTitle(big)} is over the server upload limit (${state.service.max_upload_mb} MB).`;
   if (state.footprintInfo?.status === 'error') return 'The footprint file could not be read.';
   const id = idCheck();
   if (!id.ok) return id.msg;
@@ -1760,10 +3292,22 @@ async function cancelRun() {
 }
 
 async function loadFromServer(jobId, label) {
-  const res = await fetch(`${state.apiBase}/api/jobs/${jobId}/artifacts/output`);
+  const [res, pointsRes] = await Promise.all([
+    fetch(`${state.apiBase}/api/jobs/${jobId}/artifacts/output`),
+    fetch(`${state.apiBase}/api/jobs/${jobId}/artifacts/points`).catch(() => null)
+  ]);
   if (res.status === 404) throw new Error('This run is no longer on the server (expired or cleaned up).');
   if (!res.ok) throw new Error(`Could not download the result (HTTP ${res.status}).`);
   const fc = await res.json();
+  if (pointsRes && pointsRes.ok) {
+    try {
+      state.pointsData = await pointsRes.json();
+    } catch (_) {
+      state.pointsData = null;
+    }
+  } else {
+    state.pointsData = null;
+  }
   checkCompat(fc);
   state.activeRun = jobId;
   applyDataset(fc, label);
@@ -1877,6 +3421,27 @@ $('api-base').addEventListener('change', e => {
 });
 
 $('btn-reset-params').addEventListener('click', resetParams);
+$('btn-reset-tree-params')?.addEventListener('click', () => {
+  for (const def of PARAMS.filter(p => p.group === 'tree')) setParam(def.key, def.def);
+});
+
+function setEngineMode(mode) {
+  state.runMode = mode;
+  state.params.mode = mode;
+  const isTree = mode === 'tree';
+  $('mode-sel-building').classList.toggle('active', !isTree);
+  $('mode-sel-building').setAttribute('aria-pressed', String(!isTree));
+  $('mode-sel-tree').classList.toggle('active', isTree);
+  $('mode-sel-tree').setAttribute('aria-pressed', String(isTree));
+  $('tree-run-notice').style.display = isTree ? 'block' : 'none';
+  $('building-params-container').style.display = isTree ? 'none' : 'block';
+  $('lbl-params-tree').style.display = isTree ? 'flex' : 'none';
+  $('params-tree').style.display = isTree ? 'block' : 'none';
+  FILE_SLOTS.forEach(renderSlot);
+  refreshRunButton();
+}
+$('mode-sel-building')?.addEventListener('click', () => setEngineMode('building'));
+$('mode-sel-tree')?.addEventListener('click', () => setEngineMode('tree'));
 $('btn-run').addEventListener('click', () => {
   if (state.upload) state.upload.abort();
   else if (state.job) cancelRun();
@@ -1906,6 +3471,21 @@ $('mode-building').addEventListener('click', () => {
   renderHierarchy();
   clearHover();
 });
+$('mode-tree-tier')?.addEventListener('click', () => {
+  state.treeHoverMode = 'tier';
+  $('mode-tree-tier').classList.add('active'); $('mode-tree-group').classList.remove('active');
+  $('mode-tree-tier').setAttribute('aria-pressed', 'true');
+  $('mode-tree-group').setAttribute('aria-pressed', 'false');
+  state.pinnedObjectId = null;
+  clearHover();
+});
+$('mode-tree-group')?.addEventListener('click', () => {
+  state.treeHoverMode = 'group';
+  $('mode-tree-group').classList.add('active'); $('mode-tree-tier').classList.remove('active');
+  $('mode-tree-group').setAttribute('aria-pressed', 'true');
+  $('mode-tree-tier').setAttribute('aria-pressed', 'false');
+  clearHover();
+});
 $('decomposition-toggle').addEventListener('change', e => { state.decomposition = e.target.checked; updateLayers(); });
 $('ground-toggle').addEventListener('change', e => {
   state.groundElevation = e.target.checked;
@@ -1921,6 +3501,267 @@ $('explode-gap').addEventListener('input', e => {
   if (state.explode) updateLayers();
 });
 
+/* Tree display and GLB controls */
+$('tree-canopy-toggle')?.addEventListener('change', e => {
+  state.treeCanopy = e.target.checked;
+  if (e.target.checked && state.treeGlbEnabled) {
+    state.treeGlbEnabled = false;
+    if ($('tree-glb-toggle')) $('tree-glb-toggle').checked = false;
+    if ($('tree-glb-options')) $('tree-glb-options').style.display = 'none';
+  }
+  updateLayers();
+});
+$('tree-trunk-toggle')?.addEventListener('change', e => {
+  state.treeTrunks = e.target.checked;
+  if (e.target.checked && state.treeGlbEnabled) {
+    state.treeGlbEnabled = false;
+    if ($('tree-glb-toggle')) $('tree-glb-toggle').checked = false;
+    if ($('tree-glb-options')) $('tree-glb-options').style.display = 'none';
+  }
+  updateLayers();
+});
+$('tree-ground-toggle')?.addEventListener('change', e => {
+  state.treeGroundElevation = e.target.checked;
+  if ($('tree-ground-hint')) {
+    $('tree-ground-hint').textContent = state.treeGroundElevation
+      ? 'On · placed at DTM elevation'
+      : 'Off · placed on z=0 basemap plane';
+  }
+  updateLayers();
+});
+
+['foliage', 'height', 'carbon'].forEach(scheme => {
+  $(`color-tree-${scheme}`)?.addEventListener('click', () => {
+    state.treeColorScheme = scheme;
+    ['foliage', 'height', 'carbon'].forEach(s => {
+      const b = $(`color-tree-${s}`);
+      if (b) {
+        b.setAttribute('aria-pressed', String(s === scheme));
+        b.classList.toggle('active', s === scheme);
+      }
+    });
+    updateLayers();
+  });
+});
+
+function updateTreeFilterBars() {
+  const syncBar = (minId, maxId, barId) => {
+    const minEl = $(minId), maxEl = $(maxId), barEl = $(barId);
+    if (!minEl || !maxEl || !barEl) return;
+    const minVal = parseFloat(minEl.value), maxVal = parseFloat(maxEl.value);
+    const minLimit = parseFloat(minEl.min), maxLimit = parseFloat(minEl.max);
+    const range = maxLimit - minLimit || 1;
+    barEl.style.left = Math.max(0, Math.min(100, ((minVal - minLimit) / range) * 100)) + '%';
+    barEl.style.right = Math.max(0, Math.min(100, 100 - (((maxVal - minLimit) / range) * 100))) + '%';
+  };
+  syncBar('tree-filter-min-height', 'tree-filter-max-height', 'tree-filter-height-bar');
+  syncBar('tree-filter-min-diameter', 'tree-filter-max-diameter', 'tree-filter-diameter-bar');
+  syncBar('tree-filter-min-carbon', 'tree-filter-max-carbon', 'tree-filter-carbon-bar');
+}
+
+function updateTreeFilterLabels() {
+  const minH = state.treeFilterMinHeight ?? 0, maxH = state.treeFilterMaxHeight ?? 45;
+  const minD = state.treeFilterMinDiameter ?? 0, maxD = state.treeFilterMaxDiameter ?? 30;
+  const minC = state.treeFilterMinCarbon ?? 0, maxC = state.treeFilterMaxCarbon ?? 2000;
+  if ($('tree-filter-height-val')) {
+    $('tree-filter-height-val').textContent = (minH === 0 && maxH >= 45)
+      ? 'All (0 – 45 m)' : `${minH.toFixed(1)} – ${maxH.toFixed(1)} m`;
+  }
+  if ($('tree-filter-diameter-val')) {
+    $('tree-filter-diameter-val').textContent = (minD === 0 && maxD >= 30)
+      ? 'All (0 – 30 m)' : `${minD.toFixed(1)} – ${maxD.toFixed(1)} m`;
+  }
+  if ($('tree-filter-carbon-val')) {
+    $('tree-filter-carbon-val').textContent = (minC === 0 && maxC >= 2000)
+      ? 'All (0 – 2000 kg C)' : `${Math.round(minC)} – ${Math.round(maxC)} kg C`;
+  }
+  updateTreeFilterBars();
+}
+
+function setupDualRange(minId, maxId, barId, stateMinKey, stateMaxKey, onUpdate) {
+  const minEl = $(minId);
+  const maxEl = $(maxId);
+  const barEl = $(barId);
+  if (!minEl || !maxEl || !barEl) return;
+
+  function sync(source) {
+    let minVal = parseFloat(minEl.value);
+    let maxVal = parseFloat(maxEl.value);
+    const minLimit = parseFloat(minEl.min);
+    const maxLimit = parseFloat(minEl.max);
+    const range = maxLimit - minLimit || 1;
+
+    if (source === 'min' && minVal > maxVal) {
+      minVal = maxVal;
+      minEl.value = minVal;
+    } else if (source === 'max' && maxVal < minVal) {
+      maxVal = minVal;
+      maxEl.value = maxVal;
+    }
+
+    state[stateMinKey] = minVal;
+    state[stateMaxKey] = maxVal;
+
+    const leftPct = Math.max(0, Math.min(100, ((minVal - minLimit) / range) * 100));
+    const rightPct = Math.max(0, Math.min(100, 100 - (((maxVal - minLimit) / range) * 100)));
+
+    barEl.style.left = leftPct + '%';
+    barEl.style.right = rightPct + '%';
+
+    // Dynamic z-index for overlapping thumbs
+    if (minVal >= maxLimit * 0.95) {
+      minEl.style.zIndex = '3';
+      maxEl.style.zIndex = '2';
+    } else if (maxVal <= minLimit + range * 0.05) {
+      maxEl.style.zIndex = '3';
+      minEl.style.zIndex = '2';
+    }
+
+    updateTreeFilterLabels();
+    if (onUpdate) onUpdate();
+  }
+
+  minEl.addEventListener('pointerdown', () => {
+    minEl.style.zIndex = '4';
+    maxEl.style.zIndex = '2';
+  });
+  maxEl.addEventListener('pointerdown', () => {
+    maxEl.style.zIndex = '4';
+    minEl.style.zIndex = '2';
+  });
+
+  minEl.addEventListener('input', () => sync('min'));
+  maxEl.addEventListener('input', () => sync('max'));
+
+  sync();
+}
+
+const onTreeFilterChange = () => {
+  updateLayers();
+  renderStats();
+};
+setupDualRange('tree-filter-min-height', 'tree-filter-max-height', 'tree-filter-height-bar', 'treeFilterMinHeight', 'treeFilterMaxHeight', onTreeFilterChange);
+setupDualRange('tree-filter-min-diameter', 'tree-filter-max-diameter', 'tree-filter-diameter-bar', 'treeFilterMinDiameter', 'treeFilterMaxDiameter', onTreeFilterChange);
+setupDualRange('tree-filter-min-carbon', 'tree-filter-max-carbon', 'tree-filter-carbon-bar', 'treeFilterMinCarbon', 'treeFilterMaxCarbon', onTreeFilterChange);
+
+$('tree-glb-toggle')?.addEventListener('change', e => {
+  state.treeGlbEnabled = e.target.checked;
+  if (e.target.checked) {
+    state.treeCanopy = false;
+    state.treeTrunks = false;
+    if ($('tree-canopy-toggle')) $('tree-canopy-toggle').checked = false;
+    if ($('tree-trunk-toggle')) $('tree-trunk-toggle').checked = false;
+  }
+  if ($('tree-glb-options')) $('tree-glb-options').style.display = state.treeGlbEnabled ? 'block' : 'none';
+  updateLayers();
+});
+
+$('btn-upload-custom-trunk')?.addEventListener('click', () => $('file-custom-trunk')?.click());
+$('file-custom-trunk')?.addEventListener('change', e => {
+  const f = e.target.files?.[0];
+  if (f) {
+    if (state._customTrunkObjectUrl) URL.revokeObjectURL(state._customTrunkObjectUrl);
+    state._customTrunkObjectUrl = URL.createObjectURL(f);
+    state._customTrunkName = f.name;
+    state.treeTrunkGlbUrl = state._customTrunkObjectUrl;
+    if ($('tree-trunk-model-status')) $('tree-trunk-model-status').textContent = `Custom: ${f.name}`;
+    if ($('tree-glb-toggle') && !state.treeGlbEnabled) {
+      state.treeGlbEnabled = true;
+      $('tree-glb-toggle').checked = true;
+      if ($('tree-glb-options')) $('tree-glb-options').style.display = 'block';
+      state.treeCanopy = false;
+      state.treeTrunks = false;
+      if ($('tree-canopy-toggle')) $('tree-canopy-toggle').checked = false;
+      if ($('tree-trunk-toggle')) $('tree-trunk-toggle').checked = false;
+    }
+    updateLayers();
+  }
+  e.target.value = '';
+});
+$('btn-clear-trunk')?.addEventListener('click', () => {
+  if (state._customTrunkObjectUrl) URL.revokeObjectURL(state._customTrunkObjectUrl);
+  state._customTrunkObjectUrl = null;
+  state._customTrunkName = null;
+  state.treeTrunkGlbUrl = '/models/tree_trunk.glb';
+  if ($('tree-trunk-model-status')) $('tree-trunk-model-status').textContent = 'Default (tree-01)';
+  updateLayers();
+});
+
+$('btn-upload-custom-canopy')?.addEventListener('click', () => $('file-custom-canopy')?.click());
+$('file-custom-canopy')?.addEventListener('change', e => {
+  const f = e.target.files?.[0];
+  if (f) {
+    if (state._customCanopyObjectUrl) URL.revokeObjectURL(state._customCanopyObjectUrl);
+    state._customCanopyObjectUrl = URL.createObjectURL(f);
+    state._customCanopyName = f.name;
+    state.treeCanopyGlbUrl = state._customCanopyObjectUrl;
+    if ($('tree-canopy-model-status')) $('tree-canopy-model-status').textContent = `Custom: ${f.name}`;
+    if ($('tree-glb-toggle') && !state.treeGlbEnabled) {
+      state.treeGlbEnabled = true;
+      $('tree-glb-toggle').checked = true;
+      if ($('tree-glb-options')) $('tree-glb-options').style.display = 'block';
+      state.treeCanopy = false;
+      state.treeTrunks = false;
+      if ($('tree-canopy-toggle')) $('tree-canopy-toggle').checked = false;
+      if ($('tree-trunk-toggle')) $('tree-trunk-toggle').checked = false;
+    }
+    updateLayers();
+  }
+  e.target.value = '';
+});
+$('btn-clear-canopy')?.addEventListener('click', () => {
+  if (state._customCanopyObjectUrl) URL.revokeObjectURL(state._customCanopyObjectUrl);
+  state._customCanopyObjectUrl = null;
+  state._customCanopyName = null;
+  state.treeCanopyGlbUrl = '/models/tree_canopy.glb';
+  if ($('tree-canopy-model-status')) $('tree-canopy-model-status').textContent = 'Default (tree-01)';
+  updateLayers();
+});
+
+$('lod-toggle').addEventListener('change', e => { state.showLod = e.target.checked; updateLayers(); });
+$('dtm-toggle').addEventListener('change', async e => {
+  state.showDtm = e.target.checked;
+  $('dtm-mode-row').style.display = state.showDtm ? 'flex' : 'none';
+  $('dtm-exaggeration-row').style.display = (state.showDtm && state.dtmMode === '3d') ? 'flex' : 'none';
+  if (state.showDtm) await decodeRaster('dtm');
+  updateRasterNotice('dtm');
+  updateLayers();
+});
+$('footprints-toggle').addEventListener('change', e => {
+  state.showFootprints = e.target.checked;
+  updateLayers();
+});
+$('dsm-toggle').addEventListener('change', async e => {
+  state.showDsm = e.target.checked;
+  $('dsm-mode-row').style.display = state.showDsm ? 'flex' : 'none';
+  if (state.showDsm) await decodeRaster('dsm');
+  updateRasterNotice('dsm');
+  updateLayers();
+});
+
+function setRasterMode(slot, mode) {
+  const other = mode === '2d' ? '3d' : '2d';
+  $(`${slot}-${mode}`).setAttribute('aria-pressed', 'true');
+  $(`${slot}-${other}`).setAttribute('aria-pressed', 'false');
+  state[`${slot}Mode`] = mode;
+  if (slot === 'dtm') {
+    $('dtm-exaggeration-row').style.display = (state.showDtm && mode === '3d') ? 'flex' : 'none';
+    state._drapedFootprintGeoJSON = null;
+  }
+  updateLayers();
+}
+['dtm','dsm'].forEach(slot => {
+  $(`${slot}-2d`).addEventListener('click', () => setRasterMode(slot, '2d'));
+  $(`${slot}-3d`).addEventListener('click', () => setRasterMode(slot, '3d'));
+});
+
+$('dtm-exaggeration').addEventListener('input', e => {
+  state.dtmExaggeration = Number(e.target.value);
+  $('dtm-exaggeration-val').textContent = `${state.dtmExaggeration.toFixed(1)}×`;
+  state._drapedFootprintGeoJSON = null;
+  updateLayers();
+});
+
 $('btn-fit').addEventListener('click', () => fitBounds(state.bounds));
 $('btn-reset-view').addEventListener('click', () => {
   deckgl.setProps({initialViewState: {...DEFAULT_VIEW, transitionDuration: 650}});
@@ -1930,7 +3771,30 @@ $('btn-reset-view').addEventListener('click', () => {
 ['dragover','drop'].forEach(ev => window.addEventListener(ev, e => e.preventDefault()));
 $('map').addEventListener('drop', e => {
   const f = e.dataTransfer?.files?.[0];
-  if (f && /\.(geojson|json)$/i.test(f.name)) openLocalResult(f);
+  if (!f) return;
+  if (/\.(geojson|json)$/i.test(f.name)) {
+    openLocalResult(f);
+  } else if (/\.(tif|tiff)$/i.test(f.name)) {
+    const isDtm = /dtm|dem/i.test(f.name);
+    const slot = isDtm ? 'dtm' : 'dsm';
+    state.files[slot] = f;
+    state.raster[slot] = null;
+    const cfg = FILE_SLOTS.find(s => s.slot === slot);
+    if (cfg) renderSlot(cfg);
+    if (slot === 'dtm') {
+      state.showDtm = true;
+      if ($('dtm-toggle')) $('dtm-toggle').checked = true;
+      if ($('dtm-mode-row')) $('dtm-mode-row').style.display = 'flex';
+    } else {
+      state.showDsm = true;
+      if ($('dsm-toggle')) $('dsm-toggle').checked = true;
+      if ($('dsm-mode-row')) $('dsm-mode-row').style.display = 'flex';
+    }
+    decodeRaster(slot).then(() => {
+      updateRasterNotice(slot);
+      updateLayers();
+    });
+  }
 });
 
 /* ------------------------------------------------------------- utilities */
