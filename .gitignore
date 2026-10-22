@@ -17,6 +17,12 @@ build/
 dist/
 *.egg-info/
 
+# Cache
+.cache/
+
+# Local backup files
+*.orig
+
 # IDE / OS
 .DS_Store
 .idea/
@@ -24,8 +30,9 @@ dist/
 
 # Large/local geospatial data
 *.tif
-# Except samples/atap-sample-area-01/data/
+# Except samples datasets
 !samples/atap-sample-area-01/data/*.tif
+!samples/atap-sample-tree-01/data/*.tif
 *.tiff
 *.las
 *.laz

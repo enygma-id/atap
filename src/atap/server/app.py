@@ -42,6 +42,8 @@ PARAMETERS = {
     "parent_min_containment_ratio", "regularize", "simplify_tolerance_m",
     "rectangular_ratio", "circularity_threshold", "keep_properties",
     "working_crs", "round_digits", "workers", "gdal_cache_mb",
+    "mode", "min_tree_height", "max_bio_height_m", "trunk_ratio", "split_clusters",
+    "cluster_min_area_m2", "itd_min_distance_m", "wood_density", "carbon_fraction",
 }
 
 
@@ -101,15 +103,20 @@ def _validate_params(raw: str) -> dict[str, Any]:
     ratio_fields = {
         "min_footprint_change_ratio", "parent_min_containment_ratio",
         "rectangular_ratio", "circularity_threshold",
+        "trunk_ratio", "carbon_fraction",
     }
     nonnegative = {
         "height_diff_threshold_m", "min_subregion_area_m2",
         "min_building_height_m", "max_fill_hole_area_m2",
         "simplify_tolerance_m",
+        "min_tree_height", "max_bio_height_m", "cluster_min_area_m2",
+        "itd_min_distance_m", "wood_density",
     }
     for key, value in params.items():
-        if key == "regularize" and not isinstance(value, bool):
+        if key in ("regularize", "split_clusters") and not isinstance(value, bool):
             raise HTTPException(422, f"{key} must be a boolean")
+        if key == "mode" and value not in (None, "building", "tree"):
+            raise HTTPException(422, "mode must be 'building' or 'tree'")
         if (
             key in integer_ranges
             and (
@@ -247,6 +254,16 @@ class JobManager:
         else:
             process_options = {"start_new_session": True}
         with (job.directory / "run.log").open("a", encoding="utf-8") as log:
+            mode_str = ""
+            params_file = job.directory / "params.json"
+            if params_file.is_file():
+                try:
+                    p_data = json.loads(params_file.read_text(encoding="utf-8"))
+                    mode_str = f" (mode={p_data.get('mode', 'building')})"
+                except Exception:
+                    pass
+            log.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Job {job.job_id} started{mode_str}\n")
+            log.flush()
             try:
                 process = subprocess.Popen(
                     self.command_builder(job),
@@ -273,16 +290,36 @@ class JobManager:
                             "type": "log", "level": "warn",
                             "message": line.rstrip(),
                         }
+                    ev_type = event.get("type")
+                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    if ev_type == "log":
+                        log.write(f"[{now_str}] {event.get('message', '')}\n")
+                        log.flush()
+                    elif ev_type == "progress":
+                        c = event.get("current", 0)
+                        t = event.get("total", 0)
+                        m = event.get("message", "")
+                        prog_tag = f"[{c}/{t}] " if t else ""
+                        log.write(f"[{now_str}] [progress] {prog_tag}{m}\n")
+                        log.flush()
+                    elif ev_type == "result":
+                        log.write(f"[{now_str}] [result] Process completed successfully.\n")
+                        log.flush()
+                    elif ev_type == "error":
+                        log.write(f"[{now_str}] [error] {event.get('code', 'INTERNAL')}: {event.get('message', '')}\n")
+                        log.flush()
+
                     with self.lock:
                         if event.get("type") == "progress":
                             job.progress = event
                         elif event.get("type") == "result":
                             job.result = {
-                                key: event.get(key)
+                                key: event[key]
                                 for key in (
-                                    "num_features", "num_buildings",
-                                    "num_skipped",
+                                    "num_features", "num_buildings", "num_trees",
+                                    "num_skipped", "summary", "output_path", "points_path",
                                 )
+                                if key in event
                             }
                         elif event.get("type") == "error":
                             job.error = {
@@ -293,6 +330,8 @@ class JobManager:
                 code = process.wait()
             except Exception as exc:
                 code = 4
+                log.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [exception] {exc}\n")
+                log.flush()
                 with self.lock:
                     job.error = {"code": "INTERNAL", "message": str(exc)}
         with self.lock:
@@ -440,11 +479,29 @@ def create_app(
             allow_headers=["*"],
         )
     static = Path(__file__).parent / "static"
+    repo_docs = (Path(__file__).resolve().parents[3] / "docs").resolve()
+    docs_dir = repo_docs if repo_docs.is_dir() else (static / "docs").resolve()
     app.mount(
         "/vendor",
         StaticFiles(directory=static / "vendor", check_dir=False),
         name="vendor",
     )
+    app.mount(
+        "/models",
+        StaticFiles(directory=static / "models", check_dir=False),
+        name="models",
+    )
+
+    @app.api_route("/docs/{filename:path}", methods=["GET", "HEAD"])
+    def get_doc(filename: str) -> FileResponse:
+        doc_path = (docs_dir / filename).resolve()
+        if not str(doc_path).startswith(str(docs_dir)) or not doc_path.is_file():
+            fallback = (static / "docs" / filename).resolve()
+            if str(fallback).startswith(str(static / "docs")) and fallback.is_file():
+                doc_path = fallback
+            else:
+                raise HTTPException(404, "Documentation file not found")
+        return FileResponse(doc_path, media_type="text/markdown; charset=utf-8")
 
     @app.get("/")
     def index() -> FileResponse:
@@ -560,17 +617,54 @@ def create_app(
 
     @app.get("/api/jobs/{job_id}/artifacts/{kind}")
     def artifact(job_id: str, kind: str) -> FileResponse:
-        names = {"output": "output.geojson", "log": "run.log"}
+        job = get_job(job_id)
+        models_dir = Path(__file__).resolve().parent / "static" / "models"
+        if kind in ("glb_trunk", "trunk_glb"):
+            model_path = job.directory / "tree_trunk.glb"
+            if not model_path.is_file():
+                model_path = models_dir / "tree_trunk.glb"
+            if model_path.is_file():
+                return FileResponse(model_path, filename="tree_trunk.glb", media_type="model/gltf-binary")
+            raise HTTPException(404, "Artifact not found")
+        if kind in ("glb_canopy", "canopy_glb"):
+            model_path = job.directory / "tree_canopy.glb"
+            if not model_path.is_file():
+                model_path = models_dir / "tree_canopy.glb"
+            if model_path.is_file():
+                return FileResponse(model_path, filename="tree_canopy.glb", media_type="model/gltf-binary")
+            raise HTTPException(404, "Artifact not found")
+
+        if kind in ("dsm", "dtm"):
+            inputs = job.input_directory or job.directory
+            raster_path = inputs / f"{kind}.tif"
+            if raster_path.is_file():
+                return FileResponse(raster_path, filename=f"{kind}.tif", media_type="image/tiff")
+            raise HTTPException(404, "Artifact not found")
+
+        names = {
+            "output": "output.geojson",
+            "points": "output_points.geojson",
+            "summary": "output_summary.json",
+            "log": "run.log",
+        }
         if kind not in names:
             raise HTTPException(404, "Artifact not found")
         name = names[kind]
-        job = get_job(job_id)
         path = job.directory / name
         if not path.is_file():
             raise HTTPException(404, "Artifact not found")
-        media_type = "application/geo+json" if kind == "output" else "text/plain"
+        media_type = "application/geo+json" if kind in ("output", "points") else (
+            "application/json" if kind == "summary" else "text/plain"
+        )
         stamp = datetime.fromtimestamp(job.created_at, timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        filename = f"atap_{stamp}_{job.job_id[:8]}.geojson" if kind == "output" else name
+        if kind == "output":
+            filename = f"atap_{stamp}_{job.job_id[:8]}.geojson"
+        elif kind == "points":
+            filename = f"atap_{stamp}_{job.job_id[:8]}_points.geojson"
+        elif kind == "summary":
+            filename = f"atap_{stamp}_{job.job_id[:8]}_summary.json"
+        else:
+            filename = name
         return FileResponse(path, filename=filename, media_type=media_type)
 
     return app

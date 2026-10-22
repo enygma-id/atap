@@ -31,3 +31,13 @@ scientific validation.
 | KI-6 | A terrain overlay toggle is not implemented in the reference viewer. | Ground elevation placement can be inspected, but it does not display a terrain surface. |
 | KI-7 | Footprints without a complete `id` property require an explicit `id_field`. | Provide a stable, non-empty, unique source ID field; row positions are not identifiers. |
 | KI-8 | Parts with `valid_coverage_ratio < 0.5` are flagged only in the viewer tooltip. | Inspect coverage before interpreting results; no separate low-coverage review workflow is provided. |
+
+## Known limitations of the tree engine
+
+These limitations describe the tree elevation, Individual Tree Detection (ITD), and allometric carbon engine. They establish explicit operational and scientific boundaries.
+
+| ID | Limitation | Practical implication |
+|---|---|---|
+| KI-Tree-1 | Tree trunks under dense canopy are occluded in airborne LiDAR surfaces (DSM). Trunk height and diameter at breast height (DBH) are mathematical allometric proxies derived from crown geometry ($H_{\text{apex}}$, $D_{\text{crown}}$), not direct terrestrial caliper or tape measurements. | Treat DBH, biomass (AGB), and carbon stock values as remote-sensing estimations with typical $\pm 10\text{--}20\%$ uncertainty rather than ground-truth inventory counts. |
+| KI-Tree-2 | Wood density ($\rho = 0.57\text{ g/cm}^3$) and carbon fraction ($0.47$) apply static pantropical defaults. | Mixed-stand wood densities vary by species. For localized carbon certification projects, calibrate parameters against ground-inventory plot samples. |
+| KI-Tree-3 | Watershed canopy segmentation is bounded by raster grid resolution (GSD). Closely overlapping sub-canopies with height differences smaller than the saddle prominence threshold remain merged. | Interlocking canopies or multi-stem trees may be segmented as a single crown when elevation depressions between apexes do not exceed the prominence filter. |

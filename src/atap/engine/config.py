@@ -91,6 +91,19 @@ class Config:
     round_digits: int = 2
     coord_digits: int = 8   # Output longitude/latitude decimals (about 1 mm).
 
+    # Pipeline execution mode ('building' | 'tree').
+    mode: str = "building"
+
+    # Tree canopy extraction & allometrics parameters.
+    min_tree_height: float = 0.2
+    max_bio_height_m: float = 45.0
+    trunk_ratio: float = 0.35
+    split_clusters: bool = True
+    cluster_min_area_m2: float = 35.0
+    itd_min_distance_m: float = 2.5
+    wood_density: float = 0.57
+    carbon_fraction: float = 0.47
+
 
 CONFIG = Config()
 
