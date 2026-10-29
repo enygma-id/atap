@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use ATAP in research, publications, or software development, please cite this software."
+type: software
+title: "ATAP: ATAP Terrain-Aware Architectural Polygonization"
+
+authors:
+  - family-names: "Karya"
+    given-names: "Erick"
+    orcid: "https://orcid.org/0009-0003-0386-8948"
+
+  - family-names: "Mahendra"
+    given-names: "Galang"
+    orcid: "https://orcid.org/0009-0009-7527-2223"
+
+repository-code: "https://github.com/enygma-id/atap"
+
+keywords:
+  - "building-reconstruction"
+  - "digital-twin"
+  - "geojson"
+  - "geospatial"
+  - "gis"
+  - "gis-native"
+  - "polygonization"
+
+license: "AGPL-3.0-only"
