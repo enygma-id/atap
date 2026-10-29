@@ -1,10 +1,27 @@
-# ATAP
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/branding/atap-logo-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/branding/atap-logo-light.png">
+    <img
+      src="docs/assets/branding/atap-logo-light.png"
+      alt="ATAP"
+      width="300">
+  </picture>
+</p>
 
-**ATAP: ATAP Terrain-Aware Architectural Polygonization**
+<p align="center">
+  <strong><a href="https://atap.enygma.id/">Live Preview</a></strong>
+  ·
+  <a href="#quick-start">Quick Start</a>
+  ·
+  <a href="#sample-datasets">Sample Datasets</a>
+</p>
 
-ATAP is an open-source, GIS-native research and engineering framework for
-terrain-aware architectural polygonization and hierarchical building-mass
-representation.
+<p align="center">
+  <strong>ATAP Terrain-Aware Architectural Polygonization</strong><br>
+  GIS-native terrain-aware hierarchical 3D representation for buildings and tree canopies.<br>
+  Current release: <strong>v0.2.0</strong>
+</p>
 
 **[Live Preview](https://atap.enygma.id/)** · [Quick Start](#quick-start) · [Sample Dataset](#sample-dataset)
 
@@ -13,21 +30,28 @@ Legal entity: **PT Enygma Solusi Negeri**
 
 ## Overview
 
-ATAP explores whether useful three-dimensional building-mass information can
-remain canonical as ordinary GIS geometry plus hierarchy and vertical
-semantics, instead of requiring an explicit mesh or BIM object as the primary
-representation.
+ATAP is an open-source, GIS-native research and engineering framework for
+terrain-aware polygonization and hierarchical 3D representation.
+
+The canonical representation remains ordinary GIS geometry enriched with
+hierarchy and vertical semantics. Rendering meshes, procedural geometry, and
+engine-specific assets are treated as downstream representations rather than
+the primary source of truth.
+
+For buildings, ATAP explores whether useful three-dimensional building-mass
+information can remain canonical as ordinary GIS polygon geometry instead of
+requiring an explicit mesh or BIM object as the primary representation.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/atap-banner-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/atap-banner-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/overview/atap-banner-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/overview/atap-banner-light.png">
   <img
-    src="docs/assets/atap-banner-light.png"
-    alt="ATAP: GIS-native LoD 1.3 and hierarchical decomposition"
+    src="docs/assets/overview/atap-banner-light.png"
+    alt="ATAP building workflow: DTM, footprint, and DSM to GIS-native LoD 1.3 and hierarchical decomposition"
     width="100%">
 </picture>
 
-Current research direction:
+Current building research direction:
 
 ```text
 Authoritative building footprint
@@ -48,11 +72,11 @@ vertical semantics
 parent/child relationships
 ```
 
-The current stable research profile is focused on hierarchical LoD1.x /
+The current stable building profile is focused on hierarchical LoD1.x /
 LoD1.3-style building-mass representation.
 
 ATAP does not currently claim formal LoD2 conformance, complete roof
-reconstruction, BIM equivalence, or stable LAS/LAZ support.
+reconstruction, or BIM equivalence.
 
 ## Why ATAP Exists
 
@@ -74,7 +98,7 @@ canonical GIS representation
 from:
 
 ```text
-downstream rendering, tiling, streaming, and GPU optimization
+downstream rendering, tiling, streaming, procedural assets, and GPU optimization
 ```
 
 Read the full rationale in
@@ -84,8 +108,8 @@ Read the full rationale in
 
 ATAP treats GIS-native representation as a first-class architectural principle.
 
-A canonical ATAP building part may remain a Polygon or MultiPolygon while
-carrying useful 3D meaning through attributes such as:
+A canonical ATAP part may remain a Polygon or MultiPolygon while carrying
+useful 3D meaning through attributes such as:
 
 ```text
 object_id
@@ -100,8 +124,8 @@ area_m2
 volume_m3
 ```
 
-A downstream renderer may extrude or triangulate those features temporarily
-without changing the canonical data model.
+A downstream renderer may extrude, triangulate, instance, or decorate those
+features temporarily without changing the canonical data model.
 
 ATAP is intended to remain consumable by conventional GIS tooling, spatial
 databases, and multiple geospatial rendering engines such as deck.gl,
@@ -109,9 +133,10 @@ MapLibre GL, CesiumJS, and other WebGL/WebGPU-based systems.
 
 See [`docs/gis-native-principles.md`](./docs/gis-native-principles.md).
 
-## Quick start
+## Quick Start
 
-Python 3.10 or newer is required. End users can install the engine and local playground with pip:
+Python 3.10 or newer is required. End users can install the engine and local
+playground with pip:
 
 ```sh
 python -m venv .venv
@@ -123,7 +148,8 @@ atap run --input-geojson .cache/syn/stepped/footprints.geojson --dsm .cache/syn/
 atap serve
 ```
 
-Contributors can use the same commands on Windows, Linux, and macOS without activating a shell:
+Contributors can use the same commands on Windows, Linux, and macOS without
+activating a shell:
 
 ```sh
 uv sync --extra dev
@@ -133,11 +159,32 @@ uv run ruff check .
 uv run atap serve
 ```
 
-`uv` creates and uses `.venv`. Shell activation is optional. See the [CLI](docs/cli.md), [playground](docs/playground.md), [method](docs/method.md), [tree method](docs/tree_method.md), [tree requirements](docs/tree_requirements.md), and [output schema](docs/output-schema.md).
+`uv` creates and uses `.venv`. Shell activation is optional.
+
+See the [CLI](docs/cli.md), [playground](docs/playground.md),
+[method](docs/method.md), [tree method](docs/tree_method.md),
+[tree requirements](docs/tree_requirements.md), and
+[output schema](docs/output-schema.md).
 
 ## Tree & Carbon Mode (`--mode tree`)
 
-ATAP supports tree canopy elevation, Individual Tree Detection (ITD), procedural tree trunks, and remote-sensing allometric carbon accounting:
+ATAP v0.2.0 extends the same terrain-aware GIS-native approach beyond building
+masses to tree canopies.
+
+Tree mode processes canopy polygons, DSM, and DTM into hierarchical LoD 1.3
+canopy volumes, procedural trunk representations, Individual Tree Detection
+outputs, and remote-sensing allometric carbon estimates.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/overview/atap-tree-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/overview/atap-tree-light.png">
+  <img
+    src="docs/assets/overview/atap-tree-light.png"
+    alt="ATAP tree mode overview showing terrain-aware canopy decomposition and tree representation"
+    width="100%">
+</picture>
+
+Run tree mode with:
 
 ```sh
 atap run \
@@ -148,33 +195,59 @@ atap run \
   --output output_trees.geojson
 ```
 
-Outputs:
-- `output_trees.geojson`: LoD 1.3 elevated canopy tiers floating above the silvicultural trunk zone (35% trunk : 65% crown).
-- `output_trees_points.geojson`: Companion 3D tree points for trunk instancing (`ColumnLayer` / 3D GLB).
-- `output_trees_summary.json`: Survey-wide carbon stock aggregates in Megagrams Carbon ($\text{Mg C}$) and $\text{Mg } CO_2e$.
+Standard outputs include:
 
-Read the scientific method in [`docs/tree_method.md`](./docs/tree_method.md) and data requirements in [`docs/tree_requirements.md`](./docs/tree_requirements.md).
+- `output_trees.geojson`: hierarchical elevated canopy tiers above the modeled trunk zone.
+- `output_trees_points.geojson`: companion 3D tree points for trunk or model instancing.
+- `output_trees_summary.json`: survey-level tree and carbon aggregates.
 
-## Sample Dataset
+Tree mode includes:
 
-ATAP includes a ready-to-use sample dataset for reproducible research, testing, and demonstration.
+- canopy elevation from `nDSM = DSM - DTM`;
+- Individual Tree Detection for multi-tree crown clusters;
+- hierarchical canopy tiers;
+- procedural trunk placement;
+- remote-sensing allometric estimates for DBH, biomass, carbon, and CO2e.
 
-The sample contains:
+Carbon and biomass attributes are empirical remote-sensing estimates, not direct
+terrestrial measurements. Their methodological scope and limitations are
+documented explicitly.
+
+Read the scientific method in
+[`docs/tree_method.md`](./docs/tree_method.md), the data and model requirements
+in [`docs/tree_requirements.md`](./docs/tree_requirements.md), and the viewer
+guide in [`docs/tree_viewer_guide.md`](./docs/tree_viewer_guide.md).
+
+## Sample Datasets
+
+ATAP includes ready-to-use sample datasets for reproducible research, testing,
+and demonstration.
+
+### Building Sample
+
+[`samples/atap-sample-area-01/`](samples/atap-sample-area-01/)
+
+Contains:
 
 - DSM
 - DTM
 - manually delineated building footprints created by Enygma
 
-The sample dataset is available at:
+### Tree Sample
 
-[`samples/atap-sample-area-01/`](samples/atap-sample-area-01/)
+[`samples/atap-sample-tree-01/`](samples/atap-sample-tree-01/)
 
-Explore a static result generated from this dataset in the interactive
-[ATAP output preview](https://atap.enygma.id/).
+Contains tree-mode sample inputs and lightweight normalized tree model assets
+for testing the tree workflow.
 
-The sample directory includes its own documentation, attribution information, SHA-256 integrity manifest, and data license.
+Explore browser-based ATAP output and interaction in the
+[ATAP Live Preview](https://atap.enygma.id/).
 
-The sample data are licensed separately from the ATAP software under **Creative Commons Attribution 4.0 International (CC BY 4.0)**.
+Each sample directory contains its own documentation, attribution information,
+integrity manifest, and applicable data-license notice.
+
+Sample data are licensed separately from the ATAP software. Refer to the
+license file inside each sample directory for the applicable terms.
 
 ## Editions
 
@@ -202,6 +275,7 @@ See [`ENTERPRISE.md`](./ENTERPRISE.md).
 |---|---|
 | Project | ATAP |
 | Expanded name | ATAP Terrain-Aware Architectural Polygonization |
+| Current public release | v0.2.0 |
 | Founding Organization | Enygma |
 | Project Steward | Enygma |
 | Legal entity | PT Enygma Solusi Negeri |
@@ -215,7 +289,7 @@ The chronological development history is documented separately in
 
 ## Research Software
 
-ATAP is being developed as research software, not merely as a utility script.
+ATAP is developed as research software, not merely as a utility script.
 
 The repository is intended to maintain:
 
@@ -228,8 +302,9 @@ The repository is intended to maintain:
 - dependency and licensing provenance;
 - a publication-ready paper history.
 
-Research documentation is under [`docs/research/`](./docs/research/) and the
-working JOSS-oriented paper skeleton is under [`paper/`](./paper/).
+Methodological and technical documentation is maintained under
+[`docs/`](./docs/), while the working JOSS-oriented paper skeleton is under
+[`paper/`](./paper/).
 
 ## AI-Assisted Development
 
@@ -262,7 +337,12 @@ See:
 
 ## Status
 
-ATAP is under active development.
+Current public release: **v0.2.0**.
 
-Public APIs, schemas, algorithms, parameters, and output semantics may evolve
-before a stable 1.0 release.
+ATAP v0.2.0 provides tested building and tree processing workflows, including
+terrain normalization, hierarchical GIS-native representation, tree-mode
+Individual Tree Detection, procedural trunk support, and documented sample
+datasets.
+
+Development remains active. Public APIs, schemas, algorithms, parameters, and
+output semantics may continue to evolve before a stable 1.0 release.
