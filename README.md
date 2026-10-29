@@ -23,8 +23,6 @@
   Current release: <strong>v0.2.0</strong>
 </p>
 
-**[Live Preview](https://atap.enygma.id/)** · [Quick Start](#quick-start) · [Sample Dataset](#sample-dataset)
-
 **Founded and stewarded by Enygma.**  
 Legal entity: **PT Enygma Solusi Negeri**
 
