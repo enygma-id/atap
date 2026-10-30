@@ -2,6 +2,7 @@ cff-version: 1.2.0
 message: "If you use ATAP in research, publications, or software development, please cite this software."
 type: software
 title: "ATAP: ATAP Terrain-Aware Architectural Polygonization"
+version: 0.2.0
 
 authors:
   - family-names: "Karya"
