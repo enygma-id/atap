@@ -53,7 +53,9 @@ def _mesh(geometry, base, top):
     polygons = [geometry] if geometry.geom_type == "Polygon" else list(geometry.geoms)
     shells = []
     for polygon in polygons:
-        polygon = orient(polygon, sign=1)
+        # Earcut may omit duplicate/collinear boundary vertices. Use the same
+        # zero-tolerance boundary for caps and walls, leaving source data intact.
+        polygon = orient(polygon.simplify(0, preserve_topology=True), sign=1)
         rings = [np.asarray(r.coords, dtype=np.float64)[:-1, :2]
                  for r in [polygon.exterior, *polygon.interiors]]
         xy = np.concatenate(rings)
@@ -113,7 +115,12 @@ def _prepare(doc, cancel):
         geom = transform(project, shape(feature["geometry"]))
         if not geom.is_valid or not all(math.isfinite(v) for v in geom.bounds):
             raise AtapValidationError([f"{props['part_id']}: invalid projected export geometry."])
-        parts.append({"properties": props, "shells": _mesh(geom, base, top)})
+        try:
+            shells = _mesh(geom, base, top)
+        except AtapValidationError as exc:
+            raise AtapValidationError([f"{props['part_id']}: {problem}"
+                                       for problem in exc.problems]) from exc
+        parts.append({"properties": props, "shells": shells})
     return crs, parts
 
 

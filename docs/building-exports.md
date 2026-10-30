@@ -35,6 +35,9 @@ Each part becomes a closed prism between `base_elevation_m` and
 `top_elevation_m`. Courtyard holes and MultiPolygon components are preserved.
 Upper parts start at their recorded base. No ground toggle, explode offset,
 or display height scale is used. Scientific GeoJSON bytes are not changed.
+The derived mesh removes repeated and exactly collinear boundary vertices with
+zero tolerance before triangulation, so caps and walls share the same edges.
+This preserves the footprint shape, courtyard holes and elevation intervals.
 
 One Building container is created per `object_id`, with geometry-bearing
 BuildingParts for all parts, including P00. `parent_part_id` remains an
@@ -82,8 +85,13 @@ all building formats. It is separate from scientific `params`, also during
 and SHA-256 hashes. Artifact kinds are `glb`, `cityjson`, `citygml`, and `exports`
 (manifest). Downloads retain UTC timestamp and short job ID names.
 
-The playground selector chooses the formats before Run; artifact links show
-only completed exports. The viewer continues to render canonical GeoJSON.
+The playground uses compact, independent format buttons like Copy attributes.
+GeoJSON stays active because it is always generated; GLB, CityJSON and CityGML
+start inactive and can be combined freely. Reset restores GeoJSON only. Building
+export controls are hidden in tree mode. The playground sends the selection
+explicitly, while CLI/server requests without a selection still default to all
+building formats. Artifact links show only completed exports. The viewer
+continues to render canonical GeoJSON.
 
 ## Failure and resource use
 
@@ -98,8 +106,9 @@ the selected formats and source used.
 Export currently retains derived geometry in memory. Split very large datasets
 into jobs. Checks cover closed oriented edges, cap area, courtyard retention,
 concavity, component identity, elevation placement, coordinate reconstruction,
-XML escaping, determinism and staged failures. Format/schema checks complement
-these geometry checks; appearance alone is not proof of validity.
+redundant boundary vertices, XML escaping, determinism and staged failures.
+Shell validation failures identify the affected `part_id`. Format/schema checks
+complement these geometry checks; appearance alone is not proof of validity.
 
 Binary glTF packing follows Enygma ARCA, adapted for ATAP solid geometry and
 identities. See `THIRD_PARTY_NOTICES.md` for provenance and triangulator licensing.

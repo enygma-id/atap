@@ -12,6 +12,10 @@ All notable public changes to ATAP should be documented here.
 - retain courtyards, components, part IDs, elevation intervals and attributes;
   publish source/artifact hashes in an export manifest;
 - add ISC-licensed mapbox-earcut triangulation and ARCA writer provenance;
+- fix export shell failures caused by repeated or collinear boundary vertices;
+  use matching cap/wall boundaries and identify the part on shell errors;
+- replace the playground export dropdown with compact independent format
+  buttons; default to GeoJSON only and allow any combination of derivatives;
 - canonical GeoJSON, scientific parameters and tree-mode outputs are unchanged.
 
 ### Changed

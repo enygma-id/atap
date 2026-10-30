@@ -68,7 +68,32 @@ def test_closed_concave_courtyard_shell_volume():
             assert polygon.covers(Polygon([p[:2] for p in face]))
 
 
-def test_formats_identity_georef_hierarchy_and_xml_escaping(export_source):
+@pytest.mark.parametrize('polygon', [
+    Polygon([(0,0),(8,0),(8,0),(8,6),(0,6)]),
+    Polygon([(0,0),(0,0),(4,0),(8,0),(8,6),(0,6),(0,0),(0,0)]),
+    Polygon([(0,0),(12,0),(12,12),(0,12)],
+            [[(2,2),(2,4),(2,6),(6,6),(6,2)]]),
+    MultiPolygon([Polygon([(0,0),(8,0),(8,0),(8,6),(0,6)]),
+                  Polygon([(10,0),(14,0),(14,3),(14,6),(10,6)])]),
+], ids=['duplicate', 'duplicate-closure-and-collinear', 'collinear-hole', 'multipart'])
+def test_redundant_boundary_vertices_keep_closed_shell_and_volume(polygon):
+    before = polygon.wkb
+    shells = _mesh(polygon, 15, 27)
+    assert polygon.wkb == before
+    assert sum(signed_volume(shell) for shell in shells) == pytest.approx(polygon.area * 12)
+    for shell in shells:
+        for face in shell:
+            if len(face) == 3:
+                assert polygon.covers(Polygon([p[:2] for p in face]))
+
+
+@pytest.mark.parametrize('redundant_boundary', [False, True], ids=['clean', 'duplicate'])
+def test_formats_identity_georef_hierarchy_and_xml_escaping(export_source, redundant_boundary):
+    if redundant_boundary:
+        doc = json.loads(export_source.read_text())
+        for ring in doc['features'][0]['geometry']['coordinates']:
+            ring.insert(1, ring[0][:])
+        export_source.write_text(json.dumps(doc))
     before = export_source.read_bytes()
     result = export_file(export_source)
     assert set(result['artifacts']) == {'glb', 'cityjson', 'citygml'}
@@ -141,6 +166,17 @@ def test_invalid_result_rejected(export_source):
         export_file(export_source)
     with pytest.raises(AtapInputError):
         export_file(export_source, 'bad')
+
+
+def test_shell_failure_identifies_part(export_source, monkeypatch):
+    import atap.exports as exports
+
+    def broken(*args):
+        raise AtapValidationError(['Export shell has open or inconsistently oriented edges.'])
+    monkeypatch.setattr(exports, '_mesh', broken)
+    with pytest.raises(AtapValidationError, match='A-P00: Export shell'):
+        export_file(export_source)
+    assert not export_source.with_suffix('.glb').exists()
 
 
 def test_xml_control_character_rejected_without_publishing(export_source):

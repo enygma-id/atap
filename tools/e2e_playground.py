@@ -101,6 +101,28 @@ async def run(url, data, chromium, offline=False):
         check(await A.input_value('#p-id_field') == 'id' and
               await A.evaluate("collectParams().keep_properties") == keys,
               "reset restores automatic ID and all footprint attributes")
+        export_buttons = A.locator('#export-formats button')
+        check(await export_buttons.count() == 4 and
+              await A.locator('#export-formats button[aria-pressed="true"]').inner_text() == 'GeoJSON' and
+              await A.locator('#export-formats button[data-value="geojson"]').is_disabled() and
+              await A.evaluate('collectExportFormats()') == 'none',
+              'building exports default to canonical GeoJSON only')
+        for kind in ('glb', 'citygml'):
+            await A.locator(f'#export-formats button[data-value="{kind}"]').click()
+        check(set((await A.evaluate('collectExportFormats()')).split(',')) == {'glb', 'citygml'},
+              'export buttons allow an arbitrary format combination')
+        await A.locator('#export-formats button[data-value="glb"]').click()
+        check(await A.evaluate('collectExportFormats()') == 'citygml',
+              'deselecting an export leaves other selections active')
+        await A.evaluate("setEngineMode('tree')")
+        check(await A.evaluate('collectExportFormats()') == 'none' and
+              not await A.locator('#building-exports').is_visible(),
+              'tree mode hides building exports and sends none')
+        await A.evaluate("setEngineMode('building'); resetParams()")
+        check(await A.evaluate('collectExportFormats()') == 'none',
+              'reset restores GeoJSON-only exports')
+        for kind in ('glb', 'cityjson', 'citygml'):
+            await A.locator(f'#export-formats button[data-value="{kind}"]').click()
         for key, value in [('base_elevation_stat', 'median'), ('ground_source_type', 'DEM')]:
             await A.locator(f'#p-{key}-buttons button[data-value="{value}"]').click()
             check(await A.evaluate(f"collectParams().{key}") == value and
@@ -211,10 +233,17 @@ async def run(url, data, chromium, offline=False):
             await A.wait_for_function("previous => state.activeRun !== previous && !state.job", arg=previous,
                                      timeout=60000)
         await A.evaluate("setParam('workers', 2)")
+        await A.locator('#export-formats button[data-value="cityjson"]').click()
+        await A.locator('#export-formats button[data-value="citygml"]').click()
         await rerun()
         check(submitted[-1]["reuse"] and not submitted[-1]["files"] and submitted[-1]["size"] < 5000,
               "parameter rerun sends only source reference and parameters")
         check(original == await A.evaluate(canonical), "reused input gives equivalent output with workers 2")
+        if exports:
+            check(await A.evaluate('Object.keys(state.exportArtifacts)') == ['glb'],
+                  'rerun generates only the selected building derivative')
+        await A.click('#tab-btn-run')
+        await A.locator('#export-formats button[data-value="glb"]').click()
         job_id = await A.evaluate("state.activeRun")
         response = await A.request.get(f"{url.rstrip('/')}/api/jobs/{job_id}/artifacts/output")
         check(bool(re.search(r'atap_\d{8}T\d{6}Z_' + job_id[:8] + r'\.geojson',
@@ -223,6 +252,8 @@ async def run(url, data, chromium, offline=False):
         await A.set_input_files("#file-dsm", os.path.join(data, "dsm.tif"))
         await rerun()
         check(submitted[-1]["files"] and not submitted[-1]["reuse"], "changing a selected file uploads new input")
+        check(await A.evaluate('Object.keys(state.exportArtifacts)') == [],
+              'GeoJSON-only run completes without building derivatives')
         await A.evaluate("state.reusableInputs.jobId = '00000000-0000-0000-0000-000000000001'")
         previous_count = len(submitted)
         previous_errors = len(A.errs)

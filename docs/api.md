@@ -14,6 +14,9 @@ The API does not accept client filesystem paths.
 | `params` | JSON object of supported run options; defaults to `{}`. |
 | `export_formats` | Building derivatives: `all` (default for buildings), `none`, or comma-separated `glb,cityjson,citygml`. Separate from scientific params. Tree mode defaults to none. |
 
+The playground sends `none` by default (GeoJSON only). Its format buttons select
+additional building derivatives explicitly; GeoJSON is always generated.
+
 Send all three files **or** `source_job_id`. Mixing sources or omitting a file
 returns 422. An unknown, expired, or unavailable source returns 404. Uploads
 over the configured limit return 413. Unknown or invalid parameters return 422.
