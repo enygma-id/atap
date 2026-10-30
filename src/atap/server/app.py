@@ -81,6 +81,7 @@ class Job:
     events: list[dict[str, Any]] = field(default_factory=list)
     process: subprocess.Popen[str] | None = None
     cancel_requested: bool = False
+    export_formats: str | None = None
 
 
 def _validate_params(raw: str) -> dict[str, Any]:
@@ -201,7 +202,7 @@ class JobManager:
     def _default_command(self, job: Job) -> list[str]:
         directory = job.directory
         inputs = job.input_directory or directory
-        return [
+        command = [
             sys.executable, "-m", "atap", "run",
             "--input-geojson", str(inputs / "footprint.geojson"),
             "--dsm", str(inputs / "dsm.tif"),
@@ -212,11 +213,16 @@ class JobManager:
             "--cancel-file", str(directory / "CANCEL"),
             "--raster-drivers", "GTiff",
         ]
+        if job.export_formats is not None:
+            command.extend(["--export", job.export_formats])
+        return command
 
     def submit(
         self, directory: Path, footprint_count: int, input_directory: Path | None = None,
+        export_formats: str | None = None,
     ) -> Job:
-        job = Job(directory.name, directory, footprint_count, input_directory=input_directory)
+        job = Job(directory.name, directory, footprint_count, input_directory=input_directory,
+                  export_formats=export_formats)
         with self.lock:
             self.jobs[job.job_id] = job
             self.queue.append(job.job_id)
@@ -318,6 +324,7 @@ class JobManager:
                                 for key in (
                                     "num_features", "num_buildings", "num_trees",
                                     "num_skipped", "summary", "output_path", "points_path",
+                                    "exports",
                                 )
                                 if key in event
                             }
@@ -526,8 +533,19 @@ def create_app(
         dtm: UploadFile | None = File(None),
         params: str = Form("{}"),
         source_job_id: str | None = Form(None),
+        export_formats: str | None = Form(None),
     ) -> JSONResponse:
         parsed = _validate_params(params)
+        if export_formats is not None:
+            from atap.engine.config import AtapInputError
+            from atap.exports import parse_formats
+
+            try:
+                parse_formats(export_formats)
+            except AtapInputError as exc:
+                raise HTTPException(422, str(exc)) from exc
+            if parsed.get("mode") == "tree" and export_formats != "none":
+                raise HTTPException(422, "Building exports do not support tree mode")
         uploads = (footprint, dsm, dtm)
         if source_job_id is not None:
             if any(upload is not None for upload in uploads):
@@ -545,7 +563,7 @@ def create_app(
                 try:
                     (directory / "params.json").write_text(json.dumps(parsed), encoding="utf-8")
                     os.utime(inputs, None)
-                    job = manager.submit(directory, source.footprint_count, inputs)
+                    job = manager.submit(directory, source.footprint_count, inputs, export_formats)
                 except Exception:
                     shutil.rmtree(directory, ignore_errors=True)
                     raise
@@ -566,7 +584,7 @@ def create_app(
                             target.write(chunk)
                 count = _read_footprints(directory / "footprint.geojson")
                 (directory / "params.json").write_text(json.dumps(parsed), encoding="utf-8")
-                job = manager.submit(directory, count)
+                job = manager.submit(directory, count, export_formats=export_formats)
             except Exception:
                 shutil.rmtree(directory, ignore_errors=True)
                 raise
@@ -618,6 +636,21 @@ def create_app(
     @app.get("/api/jobs/{job_id}/artifacts/{kind}")
     def artifact(job_id: str, kind: str) -> FileResponse:
         job = get_job(job_id)
+        export_types = {"glb": ("output.glb", "model/gltf-binary"),
+                        "cityjson": ("output.city.json", "application/json"),
+                        "citygml": ("output.gml", "application/gml+xml"),
+                        "exports": ("output.exports.json", "application/json")}
+        if kind in export_types:
+            available = (job.result or {}).get("exports", {})
+            if job.status != "completed" or (kind != "exports" and kind not in available):
+                raise HTTPException(404, "Artifact not found")
+            name, media = export_types[kind]
+            path = job.directory / name
+            if not path.is_file():
+                raise HTTPException(404, "Artifact not found")
+            stamp = datetime.fromtimestamp(job.created_at, timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            return FileResponse(path, media_type=media,
+                                filename=f"atap_{stamp}_{job.job_id[:8]}{name[len('output'):]}" )
         models_dir = Path(__file__).resolve().parent / "static" / "models"
         if kind in ("glb_trunk", "trunk_glb"):
             model_path = job.directory / "tree_trunk.glb"

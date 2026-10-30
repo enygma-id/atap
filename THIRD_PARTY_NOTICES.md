@@ -1,5 +1,16 @@
 # Third-Party Notices
 
+## Building export geometry
+
+- mapbox-earcut (Python bindings by Samuel Kogler, Mapbox earcut.hpp): ISC.
+  Used to triangulate polygon caps while preserving holes. License copies are
+  in `third-party/mapbox-earcut/`.
+- The binary glTF packing and coordinate convention are adapted from the
+  Enygma ARCA GLBWriter, AGPL-3.0-only, revision
+  `c2db610afacdf9353611af7c9c73b9887dd40495`:
+  <https://github.com/enygma-id/arca/blob/c2db610afacdf9353611af7c9c73b9887dd40495/src/arca/engine/glb.py>.
+  ATAP does not require ARCA, OpenSKP, or IFC ingestion dependencies.
+
 ATAP Community Edition is licensed under `AGPL-3.0-only` for covered ATAP
 project source.
 

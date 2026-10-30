@@ -225,6 +225,7 @@
   .param-option[aria-pressed=true]{background:#eaf3fb;border-color:var(--accent);color:var(--accent);position:relative}
   .param-buttons.chips .param-option{font-size:10px;line-height:1.15;padding:3px 5px}
   .param-option:hover{background:var(--fill)}
+  .param-option:disabled{cursor:default}
   .param-option:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   input[type=text],input[type=number]{width:118px;text-align:right;font-variant-numeric:tabular-nums}
   input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;flex:none}
@@ -466,6 +467,15 @@
         <button class="link-btn" id="btn-reset-tree-params" type="button">Reset to defaults</button></div>
       <div id="params-tree" style="display:none"></div>
 
+      <div class="control stack" id="building-exports">
+        <span class="lbl"><strong>Building exports</strong><small>GeoJSON is always included. Select additional formats.</small></span>
+        <div id="export-formats" class="param-buttons chips" role="group" aria-label="Building exports">
+          <button type="button" class="param-option" data-value="geojson" aria-pressed="true" disabled title="Canonical GeoJSON is always generated">GeoJSON</button>
+          <button type="button" class="param-option" data-value="glb" aria-pressed="false">GLB</button>
+          <button type="button" class="param-option" data-value="cityjson" aria-pressed="false">CityJSON</button>
+          <button type="button" class="param-option" data-value="citygml" aria-pressed="false">CityGML</button>
+        </div>
+      </div>
       <div class="section-label">Runs<div class="rule"></div></div>
       <div id="history"><p class="hint" style="margin:0">No runs yet in this session.</p></div>
     </div>
@@ -734,6 +744,8 @@
      POST /api/jobs/{id}/cancel
      GET  /api/jobs/{id}/artifacts/output   ATAP GeoJSON (EPSG:4326)
      GET  /api/jobs/{id}/artifacts/log      run log (text)
+     POST /api/jobs export_formats         all|none|glb,cityjson,citygml (building)
+     GET  /api/jobs/{id}/artifacts/{glb|cityjson|citygml|exports} completed derivatives
    ========================================================================= */
 /* POST /api/jobs accepts either three files or source_job_id plus params.
    Output downloads use atap_<UTC timestamp>_<8-character job ID>.geojson. */
@@ -772,6 +784,8 @@ const state = {
   renderCache: null,      // {key, data}
   history: [],
   activeRun: null,
+  exportArtifacts: {},
+  buildingExports: [],
   hoverMode: 'part',
   treeHoverMode: 'tier',
   decomposition: true,
@@ -2656,6 +2670,11 @@ function renderArtifacts() {
       ['output', 'Result GeoJSON', 'EPSG:4326 · parts + metadata'],
       ['log', 'Run log', 'engine messages']
     ];
+    const labels = {glb:'Building GLB', cityjson:'CityJSON 1.1', citygml:'CityGML 2.0'};
+    for (const kind of ['glb', 'cityjson', 'citygml']) {
+      if (state.exportArtifacts[kind]) kinds.push([kind, labels[kind], 'LoD1 building solids · georeferenced']);
+    }
+    if (Object.keys(state.exportArtifacts).length) kinds.push(['exports', 'Export manifest', 'CRS, vertical reference, sizes and SHA-256']);
     el.innerHTML = kinds.map(([k,label,sub]) =>
       `<a class="history-item" href="${base}/${k}" download>
          <svg class="ico"><use href="#i-download"/></svg>
@@ -2802,6 +2821,8 @@ function resetParams() {
   for (const def of PARAMS) setParam(def.key,
     def.type === 'chips' ? (state.footprintInfo?.keys || attributeKeys(def.def))
       : def.key === 'id_field' && state.footprintInfo?.keys?.includes('id') ? 'id' : def.def);
+  state.buildingExports = [];
+  renderExportButtons();
   syncDependencies();
   renderFootprintInfo();
 }
@@ -2825,6 +2846,17 @@ function collectParams() {
     out[def.key] = v;
   }
   return out;
+}
+
+function renderExportButtons() {
+  for (const button of $('export-formats').querySelectorAll('button')) {
+    button.setAttribute('aria-pressed', String(button.dataset.value === 'geojson' ||
+      state.buildingExports.includes(button.dataset.value)));
+  }
+}
+
+function collectExportFormats() {
+  return state.params.mode === 'tree' ? 'none' : state.buildingExports.join(',') || 'none';
 }
 
 /* ======================================================================= */
@@ -3150,6 +3182,7 @@ function errorText(payload, status) {
 
 async function startRun() {
   const files = {...state.files}, params = collectParams();
+  const exportFormats = collectExportFormats();
   const cached = state.reusableInputs;
   let reuse = cached && cached.apiBase === state.apiBase &&
     Object.keys(files).every(key => files[key] === cached.files[key]);
@@ -3158,6 +3191,7 @@ async function startRun() {
     if (reuse) body.append('source_job_id', cached.jobId);
     else for (const [key, file] of Object.entries(files)) body.append(key, file);
     body.append('params', JSON.stringify(params));
+    body.append('export_formats', exportFormats);
     return body;
   };
 
@@ -3292,13 +3326,16 @@ async function cancelRun() {
 }
 
 async function loadFromServer(jobId, label) {
-  const [res, pointsRes] = await Promise.all([
+  const [res, statusRes] = await Promise.all([
     fetch(`${state.apiBase}/api/jobs/${jobId}/artifacts/output`),
-    fetch(`${state.apiBase}/api/jobs/${jobId}/artifacts/points`).catch(() => null)
+    fetch(`${state.apiBase}/api/jobs/${jobId}`).catch(() => null)
   ]);
   if (res.status === 404) throw new Error('This run is no longer on the server (expired or cleaned up).');
   if (!res.ok) throw new Error(`Could not download the result (HTTP ${res.status}).`);
   const fc = await res.json();
+  const isTreeResult = fc.atap?.mode === 'tree' || fc.features?.[0]?.properties?.carbon_kg != null;
+  const pointsRes = isTreeResult
+    ? await fetch(`${state.apiBase}/api/jobs/${jobId}/artifacts/points`).catch(() => null) : null;
   if (pointsRes && pointsRes.ok) {
     try {
       state.pointsData = await pointsRes.json();
@@ -3309,6 +3346,7 @@ async function loadFromServer(jobId, label) {
     state.pointsData = null;
   }
   checkCompat(fc);
+  state.exportArtifacts = statusRes?.ok ? ((await statusRes.json()).result?.exports || {}) : {};
   state.activeRun = jobId;
   applyDataset(fc, label);
 }
@@ -3421,6 +3459,14 @@ $('api-base').addEventListener('change', e => {
 });
 
 $('btn-reset-params').addEventListener('click', resetParams);
+$('export-formats').addEventListener('click', event => {
+  const button = event.target.closest('button[data-value]');
+  if (!button || button.disabled) return;
+  const format = button.dataset.value;
+  state.buildingExports = state.buildingExports.includes(format)
+    ? state.buildingExports.filter(value => value !== format) : [...state.buildingExports, format];
+  renderExportButtons();
+});
 $('btn-reset-tree-params')?.addEventListener('click', () => {
   for (const def of PARAMS.filter(p => p.group === 'tree')) setParam(def.key, def.def);
 });
@@ -3437,6 +3483,7 @@ function setEngineMode(mode) {
   $('building-params-container').style.display = isTree ? 'none' : 'block';
   $('lbl-params-tree').style.display = isTree ? 'flex' : 'none';
   $('params-tree').style.display = isTree ? 'block' : 'none';
+  $('building-exports').style.display = isTree ? 'none' : 'flex';
   FILE_SLOTS.forEach(renderSlot);
   refreshRunButton();
 }

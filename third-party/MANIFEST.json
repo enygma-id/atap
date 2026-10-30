@@ -18,11 +18,14 @@
     "playwright": "1.62.0",
     "httpx": "0.28.1",
     "deck.gl": "9.3.11",
-    "jsonschema": "4.26.0"
+    "jsonschema": "4.26.0",
+    "mapbox-earcut": "2.1.0"
   },
   "note": "Captured versions are provenance of license-file sources, not dependency pins. GDAL license material is stored in a separate gdal/ directory to avoid case-insensitive filename collisions on macOS/Windows.",
   "files": [
     "MANIFEST.json",
+    "mapbox-earcut/LICENSE.md",
+    "mapbox-earcut/LICENSE-earcut",
     "README.md",
     "gdal/LICENSE.TXT",
     "geopandas/LICENSE.txt",

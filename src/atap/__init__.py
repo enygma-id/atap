@@ -11,6 +11,7 @@ __all__ = [
     "AtapValidationError",
     "Config",
     "run_elevation",
+    "export_file",
 ]
 
 
@@ -20,4 +21,8 @@ def __getattr__(name: str):
         from .engine.pipeline import run_elevation
 
         return run_elevation
+    if name == "export_file":
+        from .exports import export_file
+
+        return export_file
     raise AttributeError(name)

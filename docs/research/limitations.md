@@ -2,6 +2,11 @@
 
 Current known limitations include:
 
+- derived building exports use LoD1 part solids, not a fused outer envelope;
+  contact faces remain per part and no exterior semantic classification or
+  roof reconstruction is claimed. Export geometry is currently held in memory;
+  GLB geographic placement requires reading the ATAP origin/CRS metadata.
+
 - stable ATAP is currently DSM/DTM-driven;
 - upstream footprint and elevation quality materially affect output;
 - DSM is a 2.5D surface and cannot reveal every hidden architectural cavity;

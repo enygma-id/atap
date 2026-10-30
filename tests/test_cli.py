@@ -89,7 +89,7 @@ def test_keep_properties_omitted_means_all_and_empty_flag_means_none(monkeypatch
         return {"cancelled": False, "output_path": "out.geojson"}
     monkeypatch.setattr(atap.cli, "run_elevation", fake_run)
     common = ["run", "--input-geojson", "footprints.geojson", "--dsm", "dsm.tif",
-              "--dtm", "dtm.tif", "--output", "out.geojson", "--quiet"]
+              "--dtm", "dtm.tif", "--output", "out.geojson", "--quiet", "--export", "none"]
     assert atap.cli.main(common) == 0
     assert "keep_properties" not in calls[-1]
     assert atap.cli.main([*common, "--keep-properties", ""]) == 0
