@@ -231,6 +231,14 @@ def test_real_cli_job_and_disguised_vrt(tmp_path: Path, synthetic: Path):
         ).status_code == 200
 
         first_output = client.get(f"/api/jobs/{job_id}/artifacts/output").json()
+        result = client.get(f"/api/jobs/{job_id}").json()["result"]
+        assert set(result["exports"]) == {"glb", "cityjson", "citygml"}
+        for kind, media in (("glb", "model/gltf-binary"), ("cityjson", "application/json"),
+                            ("citygml", "application/gml+xml"), ("exports", "application/json")):
+            artifact = client.get(f"/api/jobs/{job_id}/artifacts/{kind}")
+            assert artifact.status_code == 200
+            assert artifact.headers["content-type"].startswith(media)
+            assert "atap_" in artifact.headers["content-disposition"]
         reused = client.post("/api/jobs", data={
             "source_job_id": job_id, "params": '{"id_field":"id","workers":2}',
         })
@@ -242,6 +250,14 @@ def test_real_cli_job_and_disguised_vrt(tmp_path: Path, synthetic: Path):
             output.pop("process")
             output["processing"].pop("execution")
         assert first_output == second_output
+        selected = client.post("/api/jobs", data={"source_job_id": job_id,
+                               "params": '{"workers":1}', "export_formats": "cityjson"})
+        selected_id = selected.json()["job_id"]
+        assert _wait(manager, selected_id, {"completed", "failed"}, 30) == "completed"
+        assert client.get(f"/api/jobs/{selected_id}/artifacts/cityjson").status_code == 200
+        assert client.get(f"/api/jobs/{selected_id}/artifacts/glb").status_code == 404
+        invalid = client.post("/api/jobs", data={"source_job_id": job_id, "export_formats": "../bad"})
+        assert invalid.status_code == 422
 
         disguised = b'<VRTDataset rasterXSize="1" rasterYSize="1"/>'
         response = client.post(

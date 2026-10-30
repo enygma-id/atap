@@ -30,6 +30,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # Import the package by module name so spawned workers can re-import it.
 import atap as E  # noqa: E402
 from atap.engine.config import ENGINE_VERSION  # noqa: E402
+from atap.exports import export_file, parse_formats  # noqa: E402
 
 ROOT = os.path.normpath(os.path.join(HERE, "..", "src", "atap", "server", "static"))
 WORK = None  # created in main(); spawn workers import this module too
@@ -58,7 +59,15 @@ def worker():
                                 os.path.join(inputs, "dsm.tif"), os.path.join(d, "output.geojson"),
                                 progress_cb=prog, log_cb=log, cancel_flag=lambda: job["cancel"], **params)
             if r["cancelled"]: job["status"] = "cancelled"; emit(job, {"type": "cancelled"})
-            else: job["status"] = "completed"; job["result"] = r; emit(job, {"type": "completed", "result": {k: r[k] for k in ("num_features", "num_buildings", "num_skipped")}})
+            else:
+                selected = job["export_formats"]
+                if selected != "none":
+                    r["exports"] = export_file(os.path.join(d, "output.geojson"), selected,
+                                               cancel=lambda: job["cancel"], log=log)["artifacts"]
+                job["status"] = "completed"; job["result"] = r
+                emit(job, {"type": "completed", "result": {k: r[k] for k in ("num_features", "num_buildings", "num_skipped", "exports") if k in r}})
+        except KeyboardInterrupt:
+            job["status"] = "cancelled"; emit(job, {"type": "cancelled"})
         except Exception as e:
             job["status"] = "failed"; job["error"] = str(e); emit(job, {"type": "failed", "error": str(e)})
         logf.close(); emit(job, {"type": "close"})
@@ -88,11 +97,19 @@ class H(BaseHTTPRequestHandler):
                     ev = q.get(); self.wfile.write(f"data: {json.dumps(ev)}\n\n".encode()); self.wfile.flush()
                     if ev["type"] == "close": return
             if parts[4] == "artifacts":
-                f = {"output": "output.geojson", "log": "run.log"}.get(parts[5]); fp = os.path.join(job["dir"], f or "x")
+                kind = parts[5]
+                names = {"output": "output.geojson", "log": "run.log", "glb": "output.glb",
+                         "cityjson": "output.city.json", "citygml": "output.gml", "exports": "output.exports.json"}
+                if kind in ("glb", "cityjson", "citygml", "exports") and (
+                    job["status"] != "completed" or (kind != "exports" and kind not in job.get("result", {}).get("exports", {}))):
+                    return self.send(404, {"detail": "not found"})
+                f = names.get(kind); fp = os.path.join(job["dir"], f or "x")
                 if not f or not os.path.exists(fp): return self.send(404, {"detail": "not found"})
                 stamp = datetime.fromtimestamp(job["created_at"], timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-                filename = f"atap_{stamp}_{job['id'][:8]}.geojson" if f.endswith("json") else f
-                return self.send(200, filename=filename, ctype="application/geo+json" if f.endswith("json") else "text/plain", body=open(fp, "rb").read())
+                filename = f"atap_{stamp}_{job['id'][:8]}{f[len('output'):]}" if kind != "log" else f
+                media = {"output": "application/geo+json", "glb": "model/gltf-binary",
+                         "cityjson": "application/json", "citygml": "application/gml+xml", "exports": "application/json"}
+                return self.send(200, filename=filename, ctype=media.get(kind, "text/plain"), body=open(fp, "rb").read())
         f = "index.html" if p == "/" else p.lstrip("/")
         fp = os.path.normpath(os.path.join(ROOT, f))
         if fp.startswith(ROOT) and os.path.isfile(fp):
@@ -121,8 +138,13 @@ class H(BaseHTTPRequestHandler):
                 for k, name in (("footprint", "footprint.geojson"), ("dsm", "dsm.tif"), ("dtm", "dtm.tif")): open(os.path.join(d, name), "wb").write(fields[k])
                 fc = json.loads(fields["footprint"]); count = len(fc.get("features", []))
             params = json.loads(fields.get("params", b"{}"))
+            selection = fields.get("export_formats", b"none" if params.get("mode") == "tree" else b"all").decode()
+            try:
+                parse_formats(selection)
+            except Exception as exc:
+                return self.send(422, {"detail": str(exc)})
             with LOCK:
-                job = {"id": jid, "dir": d, "inputs": inputs, "count": count, "created_at": time.time(), "params": params, "status": "queued", "cancel": False, "events": [], "subs": []}
+                job = {"id": jid, "dir": d, "inputs": inputs, "count": count, "created_at": time.time(), "params": params, "export_formats": selection, "status": "queued", "cancel": False, "events": [], "subs": []}
                 JOBS[jid] = job; Q.append(job)
                 pos = Q.index(job) + (1 if any(j["status"] == "running" for j in JOBS.values()) else 0)
             if pos > 0: emit(job, {"type": "queued", "position": pos})

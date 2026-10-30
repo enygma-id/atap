@@ -4,6 +4,16 @@ All notable public changes to ATAP should be documented here.
 
 ## Unreleased
 
+### Building exports (0.3.0 development)
+
+- generate GLB, CityJSON 1.1 and CityGML 2.0 LoD1 derivatives after validated
+  CLI/server building runs; select formats with `--export` or the playground;
+- add `atap export` and Python `export_file` for saved canonical results;
+- retain courtyards, components, part IDs, elevation intervals and attributes;
+  publish source/artifact hashes in an export manifest;
+- add ISC-licensed mapbox-earcut triangulation and ARCA writer provenance;
+- canonical GeoJSON, scientific parameters and tree-mode outputs are unchanged.
+
 ### Changed
 
 - standardized the synthetic reference building-name property as `name`;

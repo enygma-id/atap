@@ -133,6 +133,12 @@ See [`docs/gis-native-principles.md`](./docs/gis-native-principles.md).
 
 ## Quick Start
 
+Building CLI/server runs also generate GLB, CityJSON 1.1 and CityGML 2.0 LoD1
+derivatives. Use `--export none` for GeoJSON only, or select a subset with
+`--export glb,cityjson`. Existing results can be converted using
+`atap export result.geojson --formats all` without processing rasters again.
+See [Building exports](docs/building-exports.md) for coordinates and limitations.
+
 Python 3.10 or newer is required. End users can install the engine and local
 playground with pip:
 

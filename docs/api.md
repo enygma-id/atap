@@ -12,6 +12,7 @@ The API does not accept client filesystem paths.
 | `footprint`, `dsm`, `dtm` | All three files for a new input set: GeoJSON and two GeoTIFFs. |
 | `source_job_id` | An existing job UUID to reuse its uploaded input instead of sending files. |
 | `params` | JSON object of supported run options; defaults to `{}`. |
+| `export_formats` | Building derivatives: `all` (default for buildings), `none`, or comma-separated `glb,cityjson,citygml`. Separate from scientific params. Tree mode defaults to none. |
 
 Send all three files **or** `source_job_id`. Mixing sources or omitting a file
 returns 422. An unknown, expired, or unavailable source returns 404. Uploads
@@ -39,7 +40,8 @@ References are in-memory and are unavailable after server restart.
 - `GET /api/jobs/{id}/events`: SSE with backlog replay; types include queued,
   started, progress, log, cancelling, completed, cancelled, failed, and close.
 - `POST /api/jobs/{id}/cancel`: cancel this job without affecting its input source
-  or other consumers. Cancelled runs write no output.
+  or other consumers. Cancellation before canonical output writes no result;
+  cancellation during export retains the already validated GeoJSON on disk.
 
 ## Download artifacts
 
@@ -54,6 +56,13 @@ inside its UUID job directories; clients cannot choose server paths.
 
 The downloaded GeoJSON embeds configuration, ATAP attribution, timing, and
 result statistics. See [Output metadata](output-metadata.md).
+
+Completed building jobs expose selected `glb`, `cityjson`, `citygml`, and
+`exports` (manifest) artifact kinds at the same route. `result.exports` lists
+files, sizes and SHA-256 hashes; failed/cancelled jobs do not expose derivative
+downloads. Names retain the UTC timestamp and short UUID. Export failure fails
+the job explicitly and retains canonical GeoJSON on disk. See
+[Building exports](building-exports.md) for LoD, coordinates and limitations.
 
 ## CLI JSONL events
 

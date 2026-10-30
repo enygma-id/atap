@@ -46,6 +46,8 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--dsm", dest="dsm_path", required=True)
     parser.add_argument("--dtm", dest="dtm_path", required=True)
     parser.add_argument("--output", dest="output_geojson", required=True)
+    parser.add_argument("--export", dest="export_formats", default=None,
+                        help="Building derivatives: all (default), none, or glb,cityjson,citygml")
     parser.add_argument("--params-json", type=Path)
     parser.add_argument("--events", choices=("human", "jsonl"), default="human")
     parser.add_argument("--cancel-file", type=Path)
@@ -100,6 +102,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     _add_run_arguments(run)
     validate = commands.add_parser("validate", help="Validate an ATAP GeoJSON file")
     validate.add_argument("file", type=Path)
+    export = commands.add_parser("export", help="Export building derivatives from saved ATAP GeoJSON")
+    export.add_argument("file", type=Path)
+    export.add_argument("--formats", default="all")
     serve = commands.add_parser("serve", help="Start the local HTTP API and playground")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
@@ -132,6 +137,8 @@ def _load_params(path: Path | None) -> dict:
 
 
 def _run(args: argparse.Namespace) -> int:
+    from .exports import export_file, parse_formats
+
     params = _load_params(args.params_json)
     for field in RUN_FIELDS:
         value = getattr(args, field, None)
@@ -139,6 +146,15 @@ def _run(args: argparse.Namespace) -> int:
             if field == "keep_properties" and isinstance(value, str):
                 value = [item.strip() for item in value.split(",") if item.strip()]
             params[field] = value
+
+    selection = args.export_formats
+    if selection is None:
+        selection = "none" if params.get("mode") == "tree" else "all"
+    parse_formats(selection)
+    if params.get("mode") == "tree" and selection != "none":
+        raise AtapInputError("Building exports do not support tree mode; use --export none.")
+    if selection != "none" and Path(args.output_geojson).suffix.lower() not in (".json", ".geojson"):
+        raise AtapInputError("Export source must have a .geojson or .json extension.")
 
     def progress(current: int, total: int, message: str) -> None:
         if args.events == "jsonl":
@@ -162,6 +178,10 @@ def _run(args: argparse.Namespace) -> int:
     )
     if result["cancelled"]:
         return 130
+    if selection != "none":
+        manifest = export_file(args.output_geojson, selection, log=log,
+                               cancel=(lambda: args.cancel_file.exists()) if args.cancel_file else None)
+        result["exports"] = manifest["artifacts"]
     if args.events == "jsonl":
         _emit({"type": "result", **result})
     elif not args.quiet:
@@ -280,6 +300,11 @@ def _main(argv: list[str] | None = None) -> int:
             print("\n".join(problems), file=sys.stderr)
             return 3
         print(f"Valid ATAP GeoJSON: {args.file}", file=sys.stderr)
+        return 0
+    if args.command == "export":
+        from .exports import export_file
+
+        print(json.dumps(export_file(args.file, args.formats), ensure_ascii=False))
         return 0
     if args.command == "serve":
         from .server import serve

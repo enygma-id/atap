@@ -466,6 +466,8 @@
         <button class="link-btn" id="btn-reset-tree-params" type="button">Reset to defaults</button></div>
       <div id="params-tree" style="display:none"></div>
 
+      <div class="control"><label for="export-formats">Building exports<span class="hint">Additional files generated after GeoJSON validation. Tree mode uses its own outputs.</span></label>
+        <select id="export-formats"><option value="all">GLB + CityJSON + CityGML</option><option value="none">GeoJSON only</option><option value="glb">GLB</option><option value="cityjson">CityJSON</option><option value="citygml">CityGML</option></select></div>
       <div class="section-label">Runs<div class="rule"></div></div>
       <div id="history"><p class="hint" style="margin:0">No runs yet in this session.</p></div>
     </div>
@@ -734,6 +736,8 @@
      POST /api/jobs/{id}/cancel
      GET  /api/jobs/{id}/artifacts/output   ATAP GeoJSON (EPSG:4326)
      GET  /api/jobs/{id}/artifacts/log      run log (text)
+     POST /api/jobs export_formats         all|none|glb,cityjson,citygml (building)
+     GET  /api/jobs/{id}/artifacts/{glb|cityjson|citygml|exports} completed derivatives
    ========================================================================= */
 /* POST /api/jobs accepts either three files or source_job_id plus params.
    Output downloads use atap_<UTC timestamp>_<8-character job ID>.geojson. */
@@ -772,6 +776,7 @@ const state = {
   renderCache: null,      // {key, data}
   history: [],
   activeRun: null,
+  exportArtifacts: {},
   hoverMode: 'part',
   treeHoverMode: 'tier',
   decomposition: true,
@@ -2656,6 +2661,11 @@ function renderArtifacts() {
       ['output', 'Result GeoJSON', 'EPSG:4326 · parts + metadata'],
       ['log', 'Run log', 'engine messages']
     ];
+    const labels = {glb:'Building GLB', cityjson:'CityJSON 1.1', citygml:'CityGML 2.0'};
+    for (const kind of ['glb', 'cityjson', 'citygml']) {
+      if (state.exportArtifacts[kind]) kinds.push([kind, labels[kind], 'LoD1 building solids · georeferenced']);
+    }
+    if (Object.keys(state.exportArtifacts).length) kinds.push(['exports', 'Export manifest', 'CRS, vertical reference, sizes and SHA-256']);
     el.innerHTML = kinds.map(([k,label,sub]) =>
       `<a class="history-item" href="${base}/${k}" download>
          <svg class="ico"><use href="#i-download"/></svg>
@@ -3158,6 +3168,7 @@ async function startRun() {
     if (reuse) body.append('source_job_id', cached.jobId);
     else for (const [key, file] of Object.entries(files)) body.append(key, file);
     body.append('params', JSON.stringify(params));
+    body.append('export_formats', params.mode === 'tree' ? 'none' : $('export-formats').value);
     return body;
   };
 
@@ -3292,13 +3303,16 @@ async function cancelRun() {
 }
 
 async function loadFromServer(jobId, label) {
-  const [res, pointsRes] = await Promise.all([
+  const [res, statusRes] = await Promise.all([
     fetch(`${state.apiBase}/api/jobs/${jobId}/artifacts/output`),
-    fetch(`${state.apiBase}/api/jobs/${jobId}/artifacts/points`).catch(() => null)
+    fetch(`${state.apiBase}/api/jobs/${jobId}`).catch(() => null)
   ]);
   if (res.status === 404) throw new Error('This run is no longer on the server (expired or cleaned up).');
   if (!res.ok) throw new Error(`Could not download the result (HTTP ${res.status}).`);
   const fc = await res.json();
+  const isTreeResult = fc.atap?.mode === 'tree' || fc.features?.[0]?.properties?.carbon_kg != null;
+  const pointsRes = isTreeResult
+    ? await fetch(`${state.apiBase}/api/jobs/${jobId}/artifacts/points`).catch(() => null) : null;
   if (pointsRes && pointsRes.ok) {
     try {
       state.pointsData = await pointsRes.json();
@@ -3309,6 +3323,7 @@ async function loadFromServer(jobId, label) {
     state.pointsData = null;
   }
   checkCompat(fc);
+  state.exportArtifacts = statusRes?.ok ? ((await statusRes.json()).result?.exports || {}) : {};
   state.activeRun = jobId;
   applyDataset(fc, label);
 }

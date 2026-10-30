@@ -1,5 +1,24 @@
 # ATAP Elevation — Decision Log
 
+## ADR-020 Derived building exports
+
+**Status:** Accepted for 0.3.0 development. **Change class:** E.
+
+A separate post-processing service generates GLB, CityJSON 1.1 and CityGML 2.0
+LoD1 solids from validated building results. Canonical GeoJSON and scientific
+calculations remain unchanged. CLI/server building runs default to all formats;
+`--export none` retains GeoJSON-only execution. The Python engine API remains
+unchanged and a separate `export_file` helper exposes derivatives.
+
+Use one Building per object_id and geometry-bearing parts; retain the original
+parent_part_id as an attribute. No duplicate parent geometry or LoD2 claim.
+Disconnected CityGML components use child parts, not CompositeSolids. GLB uses
+a local origin with explicit CRS metadata. Export failure is reported while
+retaining the already persisted canonical output. No renderer state is read.
+
+The approach adapts Enygma ARCA's writer architecture without its BIM ingestion
+dependencies. See [Building exports](building-exports.md).
+
 Decisions taken while turning the original `elevation.py` into the ATAP
 engine and packaged reference playground (engine 0.2.0 / profile 0.6).
 
