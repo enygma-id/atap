@@ -536,7 +536,8 @@ def create_app(
         export_formats: str | None = Form(None),
     ) -> JSONResponse:
         parsed = _validate_params(params)
-        if export_formats is not None:
+        export_formats = 'none' if export_formats is None else export_formats
+        if export_formats != 'none':
             from atap.engine.config import AtapInputError
             from atap.exports import parse_formats
 

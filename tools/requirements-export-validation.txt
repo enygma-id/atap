@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# CI/QA only, not dependencies of the installed ATAP engine.
+lxml==6.0.2
+pyogrio==0.11.1
+cjio==0.9.0
+trimesh==4.11.0

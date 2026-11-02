@@ -47,7 +47,7 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--dtm", dest="dtm_path", required=True)
     parser.add_argument("--output", dest="output_geojson", required=True)
     parser.add_argument("--export", dest="export_formats", default=None,
-                        help="Building derivatives: all (default), none, or glb,cityjson,citygml")
+                        help="Building derivatives: none (default), all, or glb,cityjson,citygml")
     parser.add_argument("--params-json", type=Path)
     parser.add_argument("--events", choices=("human", "jsonl"), default="human")
     parser.add_argument("--cancel-file", type=Path)
@@ -137,8 +137,6 @@ def _load_params(path: Path | None) -> dict:
 
 
 def _run(args: argparse.Namespace) -> int:
-    from .exports import export_file, parse_formats
-
     params = _load_params(args.params_json)
     for field in RUN_FIELDS:
         value = getattr(args, field, None)
@@ -149,8 +147,10 @@ def _run(args: argparse.Namespace) -> int:
 
     selection = args.export_formats
     if selection is None:
-        selection = "none" if params.get("mode") == "tree" else "all"
-    parse_formats(selection)
+        selection = "none"
+    if selection != 'none':
+        from .exports import export_file, parse_formats
+        parse_formats(selection)
     if params.get("mode") == "tree" and selection != "none":
         raise AtapInputError("Building exports do not support tree mode; use --export none.")
     if selection != "none" and Path(args.output_geojson).suffix.lower() not in (".json", ".geojson"):

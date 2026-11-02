@@ -6,6 +6,7 @@ import struct
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -14,7 +15,7 @@ from shapely.geometry import MultiPolygon, Polygon, mapping
 from shapely.ops import transform
 
 from atap.engine.config import AtapInputError, AtapValidationError
-from atap.exports import BLDG, GML, _mesh, export_file
+from atap.exports import BLDG, GEN, GML, _mesh, export_file
 
 
 @pytest.fixture
@@ -197,3 +198,155 @@ def test_export_cli_selection_and_repeatability(export_source):
     assert second.returncode == 0, second.stderr
     assert original == export_source.with_suffix('.glb').read_bytes()
     assert not export_source.with_suffix('.gml').exists()
+
+
+def test_standard_roots_and_typed_attributes(export_source):
+    values = dict(text='Bâtiment & <東京>', integer=12, decimal=1.25, enabled=True,
+                  absent=None, nested={'z':[1,False,None]}, huge=2**40)
+    doc = json.loads(export_source.read_text(encoding='utf-8'))
+    doc['features'][0]['properties'].update(values)
+    export_source.write_text(json.dumps(doc, ensure_ascii=False), encoding='utf-8')
+    before = export_source.read_bytes()
+    manifest = export_file(export_source)
+    cj = json.loads(export_source.with_suffix('.city.json').read_text(encoding='utf-8'))
+    authority = json.loads(Path('tests/fixtures/exports/cityjson-1.1.3.schema.json').read_text())
+    import hashlib
+    lock = json.loads(Path('tools/export-validation-lock.json').read_text())
+    pinned = next(s for s in lock['sources'] if s['url']==lock['cityjson_root'])
+    assert hashlib.sha256(Path('tests/fixtures/exports/cityjson-1.1.3.schema.json').read_bytes()).hexdigest()==pinned['sha256']
+    assert not set(cj) - set(authority['properties'])
+    assert cj['version'] == '1.1'
+    attrs = next(o['attributes'] for o in cj['CityObjects'].values()
+                 if o['type'] == 'BuildingPart' and o['attributes']['part_id'] == 'A-P00')
+    for key,value in values.items():
+        assert attrs[key] == value and type(attrs[key]) is type(value)
+    node = ET.parse(export_source.with_suffix('.gml')).find(f'.//{{{BLDG}}}BuildingPart')
+    for key, kind, text in [('text','stringAttribute',values['text']), ('integer','intAttribute','12'),
+                            ('decimal','doubleAttribute','1.25'), ('enabled','stringAttribute','true'),
+                            ('nested','stringAttribute','{"z":[1,false,null]}'),
+                            ('huge','stringAttribute',str(2**40))]:
+        attr = node.find(f'{{{GEN}}}{kind}[@name="{key}"]/{{{GEN}}}value')
+        assert attr is not None and attr.text == text
+    assert not any(a.get('name') in ('absent','name') for a in node if a.tag.startswith(f'{{{GEN}}}'))
+    assert any('huge' in warning and 'int32' in warning for warning in manifest['warnings'])
+    assert manifest['canonical_profile'] == '0.6'
+    assert manifest['coordinate_reference']['vertical_status'] == 'unknown'
+    assert manifest['validation']['external'] == 'not_run_at_runtime'
+    assert export_source.read_bytes() == before
+
+
+@pytest.mark.parametrize('value', [float('nan'), float('inf'), -float('inf')])
+def test_nonfinite_attributes_rejected_in_all_formats(export_source, value):
+    doc = json.loads(export_source.read_text())
+    doc['features'][0]['properties']['nested'] = {'bad':[value]}
+    export_source.write_text(json.dumps(doc))
+    before = export_source.read_bytes()
+    with pytest.raises(AtapValidationError, match='A-P00.nested.bad.*non-finite'):
+        export_file(export_source)
+    assert export_source.read_bytes() == before
+    assert not export_source.with_suffix('.exports.json').exists()
+
+
+@pytest.mark.parametrize('failure', ['disk', 'corrupt', 'publish', 'cancel'])
+def test_failure_invalidates_stale_manifest(export_source, monkeypatch, failure):
+    import errno
+
+    import atap.exports as exports
+    export_file(export_source)
+    before = export_source.read_bytes()
+    if failure == 'disk':
+        def full(*args):
+            raise OSError(errno.ENOSPC, 'No space left on device')
+        monkeypatch.setattr(exports, '_write_cityjson', full)
+        expected = OSError
+    elif failure == 'corrupt':
+        def corrupt(path, *args):
+            path.write_text('{"invalid":true}')
+        monkeypatch.setattr(exports, '_write_cityjson', corrupt)
+        expected = AtapValidationError
+    elif failure == 'publish':
+        original = exports.os.replace
+        def fail_manifest(source, target):
+            if str(target).endswith('.exports.json'):
+                raise OSError('manifest publish failed')
+            return original(source, target)
+        monkeypatch.setattr(exports.os, 'replace', fail_manifest)
+        expected = OSError
+    else:
+        monkeypatch.setattr(exports, '_write_cityjson', lambda *args: (_ for _ in ()).throw(KeyboardInterrupt()))
+        expected = KeyboardInterrupt
+    with pytest.raises(expected):
+        export_file(export_source)
+    assert export_source.read_bytes() == before
+    assert not export_source.with_suffix('.exports.json').exists()
+    assert not list(export_source.parent.glob('.atap-export-*'))
+
+
+def test_manifest_hashes_final_bytes_and_vertical_crs(export_source):
+    import hashlib
+    doc = json.loads(export_source.read_text())
+    doc['vertical_reference']['vertical_datum'] = 'EPSG:5773'
+    export_source.write_text(json.dumps(doc))
+    manifest = export_file(export_source, 'glb,citygml')
+    assert manifest['coordinate_reference']['vertical_crs'] == 'EPSG:5773'
+    assert manifest['coordinate_reference']['vertical_status'] == 'explicit_crs'
+    assert manifest['source_sha256'] == hashlib.sha256(export_source.read_bytes()).hexdigest()
+    for kind, artifact in manifest['artifacts'].items():
+        data = (export_source.parent / artifact['file']).read_bytes()
+        assert hashlib.sha256(data).hexdigest() == artifact['sha256']
+        assert len(data) == artifact['bytes']
+        assert artifact['target_version'] == {'glb':'2.0','cityjson':'1.1','citygml':'2.0'}[kind]
+    assert '5773' in ET.parse(export_source.with_suffix('.gml')).find(f'.//{{{GML}}}Solid').get('srsName')
+    with pytest.raises(AtapInputError, match='registered compound EPSG CRS'):
+        export_file(export_source, 'cityjson')
+    from pyproj import CRS
+
+    from atap.exports import _reference_system
+    doc['vertical_reference']['vertical_datum'] = 'EPSG:5709'
+    assert _reference_system(CRS(28992), doc)[0].endswith('/7415')
+
+
+@pytest.mark.parametrize('datum', ['EPSG:4326','EPSG:0','EPSG:5702'])
+def test_unsupported_explicit_vertical_reference_is_not_invented(export_source, datum):
+    doc = json.loads(export_source.read_text())
+    doc['vertical_reference']['vertical_datum'] = datum
+    export_source.write_text(json.dumps(doc))
+    with pytest.raises(AtapInputError, match='vertical CRS'):
+        export_file(export_source)
+    assert not export_source.with_suffix('.exports.json').exists()
+
+
+@pytest.mark.parametrize('value',[[],None,{'type':'FeatureCollection','features':[None]},
+                                {'type':'FeatureCollection','features':[{}],'processing':None}])
+def test_malformed_document_is_controlled(export_source,value):
+    export_source.write_text(json.dumps(value))
+    with pytest.raises(AtapValidationError):
+        export_file(export_source)
+    assert not export_source.with_suffix('.exports.json').exists()
+
+
+def test_final_bytes_are_verified_before_manifest(export_source, monkeypatch):
+    import atap.exports as exports
+    original = exports.os.replace
+    def corrupt_final(source,target):
+        original(source,target)
+        if str(target).endswith('.glb'):
+            Path(target).write_bytes(b'corrupted after replace')
+    monkeypatch.setattr(exports.os,'replace',corrupt_final)
+    with pytest.raises(AtapValidationError,match='bytes changed during publication'):
+        export_file(export_source)
+    assert not export_source.with_suffix('.exports.json').exists()
+
+
+def test_source_change_during_export_cannot_publish_mismatched_manifest(export_source,monkeypatch):
+    import atap.exports as exports
+    original = exports._write_glb
+    def external_edit(*args):
+        result = original(*args)
+        export_source.write_bytes(export_source.read_bytes()+b'\n')
+        return result
+    monkeypatch.setattr(exports,'_write_glb',external_edit)
+    with pytest.raises(AtapValidationError,match='source changed during export'):
+        export_file(export_source)
+    assert not export_source.with_suffix('.exports.json').exists()
+    assert not export_source.with_suffix('.glb').exists()
