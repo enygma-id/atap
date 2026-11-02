@@ -314,6 +314,11 @@ def _main(argv: list[str] | None = None) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Keep redirected JSON and diagnostics usable on legacy Windows consoles.
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="backslashreplace")
     events = "jsonl" if "--events" in (argv or sys.argv[1:]) and "jsonl" in (argv or sys.argv[1:]) else "human"
     try:
         return _main(argv)

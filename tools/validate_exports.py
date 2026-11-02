@@ -59,7 +59,7 @@ def require_val3dity(report_path):
     return report
 
 
-def check_shells(shells, feature, working_crs, quantum):
+def check_shells(shells, feature, working_crs, quantum, round_digits):
     properties = feature['properties']
     projected = transform(Transformer.from_crs(4326,working_crs,always_xy=True).transform,
                           shape(feature['geometry']))
@@ -99,14 +99,14 @@ def check_shells(shells, feature, working_crs, quantum):
     actual = np.r_[vertices.min(axis=0),vertices.max(axis=0)]
     if not np.allclose(bounds,actual,rtol=0,atol=quantum+1e-7):
         raise ValueError(f'{properties["part_id"]}: decoded XYZ bounds changed')
-    digits = properties.get('round_digits',2)
+    digits = round_digits
     measure_tolerance = projected.area*10**-digits + height*.5*10**-digits + .5*10**-digits
     if abs(properties['volume_m3']-expected) > measure_tolerance+tolerance:
         raise ValueError('Canonical volume and serialized geometry disagree beyond rounding bounds')
     return {'part_id':properties['part_id'],'shells':len(shells),'vertices':len(vertices),
             'watertight':bool(mesh.is_watertight),'winding_consistent':bool(mesh.is_winding_consistent),
             'volume_m3':float(mesh.volume),'expected_volume_m3':expected,
-            'volume_tolerance_m3':float(tolerance),'bounds':actual.tolist(),
+            'volume_tolerance_m3':float(tolerance),'source_round_digits':digits,'bounds':actual.tolist(),
             'interior_rings':sum(len(p.interiors) for p in ([projected] if projected.geom_type=='Polygon' else projected.geoms))}
 
 
@@ -143,7 +143,7 @@ def check_cityjson(cj, canonical):
                     raise ValueError('Unexpected triangulated face holes')
                 faces.append(surface[0])
             shells.append(faces)
-        reports.append(check_shells(shells,feature,canonical['processing']['working_crs'],.001))
+        reports.append(check_shells(shells,feature,canonical['processing']['working_crs'],.001,canonical['processing']['parameters']['round_digits']))
     vertices = np.asarray(cj['vertices'])*cj['transform']['scale']+cj['transform']['translate']
     if not np.allclose(np.r_[vertices.min(axis=0),vertices.max(axis=0)],cj['metadata']['geographicalExtent'],rtol=0,atol=1e-8):
         raise ValueError('CityJSON decoded bbox is incorrect')
@@ -172,7 +172,7 @@ def check_glb(path, canonical):
         mesh.merge_vertices(digits_vertex=10)
         shells = [[component.vertices[face].tolist() for face in component.faces]
                   for component in mesh.split(only_watertight=False)]
-        reports.append(check_shells(shells,feature,canonical['processing']['working_crs'],quantum))
+        reports.append(check_shells(shells,feature,canonical['processing']['working_crs'],quantum,canonical['processing']['parameters']['round_digits']))
     return reports
 
 
@@ -249,7 +249,7 @@ def validate_fixture(source, out, schema_cache, cjval, val3dity, gltf_module):
         raise ValueError('GML reader part identities changed')
     for feature in canonical['features']:
         pid = feature['properties']['part_id']
-        gml_reports.append(check_shells(gml_parts[pid],feature,canonical['processing']['working_crs'],1e-9))
+        gml_reports.append(check_shells(gml_parts[pid],feature,canonical['processing']['working_crs'],1e-9,canonical['processing']['parameters']['round_digits']))
     expected_axes = 3 if manifest['coordinate_reference']['vertical_status']=='explicit_crs' else 2
     if set(reader_report['crs_axes']) != {expected_axes}:
         raise ValueError('Independent GML reader disagrees with declared CRS dimensions')

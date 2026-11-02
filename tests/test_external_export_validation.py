@@ -80,6 +80,22 @@ def test_schema_numeric_nan_is_rejected_by_semantic_gate(gates,tmp_path):
         tool.check_gml_attributes(path,canonical)
 
 
+def test_geometry_gate_uses_declared_source_rounding(gates):
+    tool,_,root = gates
+    canonical = json.loads((root/'simple/result.geojson').read_text(encoding='utf-8'))
+    cj = json.loads((root/'simple/result.city.json').read_text(encoding='utf-8'))
+    feature = canonical['features'][0]
+    feature['properties']['volume_m3'] += 10
+    for part in cj['CityObjects'].values():
+        if part['type'] == 'BuildingPart':
+            part['attributes'] = feature['properties'].copy()
+    canonical['processing']['parameters']['round_digits'] = 0
+    assert tool.check_cityjson(cj,canonical)[0]['source_round_digits'] == 0
+    canonical['processing']['parameters']['round_digits'] = 6
+    with pytest.raises(ValueError,match='beyond rounding bounds'):
+        tool.check_cityjson(cj,canonical)
+
+
 @pytest.mark.parametrize('mutation',['root','parent','index'])
 def test_cjval_rejects_bad_roots_and_references(gates,tmp_path,mutation):
     tool,xsd,root = gates

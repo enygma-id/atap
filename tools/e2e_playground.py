@@ -131,7 +131,7 @@ async def run(url, data, chromium, offline=False):
         await A.locator('#p-base_elevation_stat-buttons button[data-value="min"]').click()
         await A.locator('#p-ground_source_type-buttons button[data-value="DTM"]').click()
         check("matches the data area" in await A.inner_text("#footprint-info"), "UTM zone check")
-        await A.click("#btn-run")
+        await A.click("#btn-run", no_wait_after=True)
         await A.wait_for_function(f"{CHIP}.includes('TERRAIN') || {CHIP}.includes('FAILED')", timeout=180000)
         check("TERRAIN" in await A.inner_text("#chip"), "run completes")
         stats = await A.inner_text("#stats")
@@ -229,7 +229,7 @@ async def run(url, data, chromium, offline=False):
         original = await A.evaluate(canonical)
         async def rerun():
             previous = await A.evaluate("state.activeRun")
-            await A.click("#btn-run")
+            await A.click("#btn-run", no_wait_after=True)
             await A.wait_for_function("previous => state.activeRun !== previous && !state.job", arg=previous,
                                      timeout=60000)
         await A.evaluate("setParam('workers', 2)")
@@ -268,7 +268,7 @@ async def run(url, data, chromium, offline=False):
 
         # --- engine failure surfaced ---------------------------------------------------
         await A.click("#tab-btn-run"); await A.fill("#p-working_crs", "EPSG:4326")
-        await A.click("#btn-run")
+        await A.click("#btn-run", no_wait_after=True)
         await A.wait_for_function(f"{CHIP}.includes('FAILED')", timeout=60000)
         await A.wait_for_timeout(1200)
         check("working_crs" in await A.inner_text("#status"), "engine error stays visible in status")
@@ -287,17 +287,17 @@ async def run(url, data, chromium, offline=False):
             }""", queue_source)
         await B.evaluate("state.params.workers = 1; document.getElementById('p-workers').value = 1")
         await C.evaluate("state.params.workers = 1; document.getElementById('p-workers').value = 1")
-        await B.click("#btn-run")
+        await B.click("#btn-run", no_wait_after=True)
         check(await B.inner_text("#btn-run-label") in ("Cancel upload", "Cancel run"),
               "button guards against double submit during input reuse")
         await B.wait_for_function(f"state.job && {CHIP}.includes('RUNNING')", timeout=60000)
-        await C.click("#btn-run")
+        await C.click("#btn-run", no_wait_after=True)
         await C.wait_for_function(f"{CHIP}.includes('QUEUED')", timeout=60000)
         check("QUEUED" in await C.inner_text("#chip"), "second user sees queue position")
-        await C.click("#btn-run")
+        await C.click("#btn-run", no_wait_after=True)
         await C.wait_for_function(f"{CHIP}.includes('CANCELLED')", timeout=30000)
         check(True, "cancel while queued")
-        await B.click("#btn-run")   # cancel B while running
+        await B.click("#btn-run", no_wait_after=True)   # cancel B while running
         await B.wait_for_function(f"{CHIP}.includes('RUN CANCELLED')", timeout=60000)
         check("No output" in await B.inner_text("#status"), "cancel while running, nothing written")
 

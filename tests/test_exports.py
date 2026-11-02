@@ -2,6 +2,7 @@
 """Geometry, placement, serialization, cancellation and CLI export regression tests."""
 
 import json
+import os
 import struct
 import subprocess
 import sys
@@ -56,6 +57,19 @@ def signed_volume(shell):
             a, b, c = np.array([face[0], face[i], face[i+1]]) - origin
             total += np.dot(a, np.cross(b, c)) / 6
     return total
+
+
+def test_cli_unicode_diagnostics_with_legacy_console(export_source):
+    doc = json.loads(export_source.read_text(encoding='utf-8'))
+    doc['features'][0]['properties']['属性'] = 2**40
+    export_source.write_text(json.dumps(doc, ensure_ascii=False), encoding='utf-8')
+    result = subprocess.run(
+        [sys.executable, '-m', 'atap', 'export', str(export_source), '--formats', 'citygml'],
+        env={**os.environ, 'PYTHONIOENCODING': 'cp1252'}, capture_output=True,
+    )
+    assert result.returncode == 0, result.stderr.decode('utf-8')
+    manifest = json.loads(result.stdout.decode('utf-8'))
+    assert '属性' in json.dumps(manifest['warnings'], ensure_ascii=False)
 
 
 def test_closed_concave_courtyard_shell_volume():
