@@ -19,7 +19,8 @@
     "httpx": "0.28.1",
     "deck.gl": "9.3.11",
     "jsonschema": "4.26.0",
-    "mapbox-earcut": "2.1.0"
+    "mapbox-earcut": "2.1.0",
+    "cffconvert": "2.0.0"
   },
   "note": "Captured versions are provenance of license-file sources, not dependency pins. GDAL license material is stored in a separate gdal/ directory to avoid case-insensitive filename collisions on macOS/Windows.",
   "files": [
@@ -47,6 +48,16 @@
     "rasterio/LICENSE.txt",
     "scipy/LICENSE.txt",
     "shapely/LICENSE.txt",
-    "shapely/LICENSE_GEOS"
-  ]
+    "shapely/LICENSE_GEOS",
+    "cffconvert/LICENSE"
+  ],
+  "release_validation_tools": {
+    "cffconvert": {
+      "version": "2.0.0",
+      "source": "https://files.pythonhosted.org/packages/ac/7e/cd1018d4073e83b852c478bab20a0855944c0122e9bf843fd17abcfd9ac7/cffconvert-2.0.0.tar.gz",
+      "source_sha256": "b4379ee415c6637dc9e3e7ba196605cb3cedcea24613e4ea242c607d9e98eb50",
+      "license": "Apache-2.0",
+      "usage": "isolated QA tool; not an engine/runtime dependency"
+    }
+  }
 }

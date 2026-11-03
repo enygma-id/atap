@@ -12,7 +12,7 @@ The API does not accept client filesystem paths.
 | `footprint`, `dsm`, `dtm` | All three files for a new input set: GeoJSON and two GeoTIFFs. |
 | `source_job_id` | An existing job UUID to reuse its uploaded input instead of sending files. |
 | `params` | JSON object of supported run options; defaults to `{}`. |
-| `export_formats` | Building derivatives: `all` (default for buildings), `none`, or comma-separated `glb,cityjson,citygml`. Separate from scientific params. Tree mode defaults to none. |
+| `export_formats` | Building derivatives: `none` (default; canonical GeoJSON only), `all`, or comma-separated `glb,cityjson,citygml`. Separate from scientific params. Tree mode keeps its own outputs and rejects building derivative selections. |
 
 The playground sends `none` by default (GeoJSON only). Its format buttons select
 additional building derivatives explicitly; GeoJSON is always generated.

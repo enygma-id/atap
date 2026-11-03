@@ -1,5 +1,41 @@
 # Elevation prototype golden outputs
 
+## Explicit cross-version release comparisons
+
+The historical 0.2.0 GeoJSON fixtures, summaries, records and
+`bench_default.sha256` remain unchanged for 0.3.0 preparation. The default
+comparator/verifier remains strict about `atap.engine_version`. For a deliberate
+version-only metadata change, run:
+
+```sh
+python tools/run_baselines.py --data .cache/syn --out .cache/baseline
+python tests/golden/verify.py .cache/baseline --ignore-engine-version --expected-engine-version 0.3.0
+```
+
+This mode replaces only the existing `atap.engine_version` value with the
+constant `<engine-version>` in comparison copies. It neither removes the
+member nor edits the source. Geometry, IDs, hierarchy, measurements, CRS,
+parameters, profile and all other metadata remain strict. Fresh output must
+independently report version 0.3.0. Same-version worker comparisons stay strict.
+
+`bench_default.scientific.sha256` stores separately normalized Windows/Linux
+digests. They were derived from historical engine-0.2.0 benchmark outputs only
+after their strict digests matched the original two entries in
+`bench_default.sha256`. Reproduce both digests from each historical full output:
+
+```sh
+python tools/compare_outputs.py HISTORICAL_BENCH.geojson --digest
+python tools/compare_outputs.py HISTORICAL_BENCH.geojson --digest --ignore-engine-version
+```
+
+Generate synthetic inputs natively on each platform with the recorded toolchain;
+reusing raster/footprint fixtures generated on another OS can produce a different
+GEOS precision variant. Do not accept an uninvestigated third hash. The negative
+tests alter heights, coordinates, parent identity, CRS, profile and benchmark
+measurements and require cross-version verification to fail.
+
+## Historical freeze
+
 Frozen on 2026-09-12 from prototype commit `3713847` (engine 0.2.0,
 profile 0.6), using synthetic inputs and `workers=1`. No scientific output,
 geometry, hierarchy, CRS behavior, schema, or defaults were changed.

@@ -34,3 +34,12 @@ explicitly skip the optional external-tool tests; the dedicated job enables all
 of them with `ATAP_CONFORMANCE=1`. See `docs/building-exports.md` for reproducible
 commands and the distinction between runtime checks, format validation, 3D
 geometric validity and release approval.
+
+The separate `release-metadata` job runs
+`python tools/check_release_readiness.py --out .cache/release-readiness`.
+It checks installed/source/lock/CFF version alignment, both sample integrity
+manifests and formal CFF 1.2.0 schema validation using isolated cffconvert 2.0.0
+(Apache-2.0; license/provenance under `third-party/cffconvert/` and the manifest).
+Isolation avoids cffconvert's jsonschema 3.x requirement replacing the engine's
+development validator. A technical PASS does not verify dataset ownership,
+Zenodo integration, publication date or human release approval.

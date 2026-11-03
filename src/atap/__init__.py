@@ -3,7 +3,7 @@
 
 from .engine.config import AtapError, AtapInputError, AtapValidationError, Config
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "AtapError",

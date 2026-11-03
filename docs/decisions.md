@@ -386,3 +386,24 @@ property default inherited from the prototype.
   Do not duplicate them or include absolute paths or renderer state.
 - These are additive metadata fields in profile 0.6. Geometry, hierarchy,
   vertical semantics, and numerical output are unaffected.
+
+## ADR-020 Version-only release provenance comparisons
+
+**Status:** Accepted for 0.3.0 release preparation.
+
+- Package and engine version 0.3.0 must appear in new output provenance;
+  canonical profile remains 0.6. No scientific algorithm, parameter, geometry,
+  hierarchy, measurement or tree-output behavior changes with this version bump.
+- Preserve the historical engine-0.2.0 golden GeoJSON, summaries and original
+  strict benchmark hashes. Default comparisons still include engine version.
+- Explicit `--ignore-engine-version` compares copies with only the existing
+  `atap.engine_version` normalized. Missing provenance still fails. Require the
+  actual new provenance separately with `--expected-engine-version 0.3.0`.
+- Store scientific benchmark digests separately, deriving them from outputs
+  verified against the strict historical hashes. Do not relax coordinates,
+  scientific metadata, array order or relationships. Same-version worker
+  comparisons never need this normalization.
+- Ordinary building CLI/API runs are canonical-only; explicit derivative
+  selection is an execution choice. Release documentation must describe that
+  behavior consistently and must not claim publication or certification from a
+  technical validation pass alone.

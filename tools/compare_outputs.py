@@ -9,26 +9,32 @@ software versions) and `processing.execution` (workers, cache). Everything
 else — features, geometry, properties, inputs, processing.parameters,
 vertical_reference, summary — must be identical. Exit 0 = equivalent.
 """
+import argparse
+import hashlib
 import json
 import sys
 
 IGNORED_TOP = {"process"}
 IGNORED_PROCESSING = {"execution"}
 
-# Profile 0.6 English migration changes only this metadata value. Use
-# --allow-orientation-translation solely when comparing a pre-migration golden.
-ALLOW_ORIENTATION_TRANSLATION = "--allow-orientation-translation" in sys.argv
-
-
-def canonical(path):
+def canonical(path, *, ignore_engine_version=False, allow_orientation_translation=False):
     d = json.load(open(path, encoding="utf-8"))
     for k in IGNORED_TOP:
         d.pop(k, None)
     for k in IGNORED_PROCESSING:
         d.get("processing", {}).pop(k, None)
-    if ALLOW_ORIENTATION_TRANSLATION:
+    if allow_orientation_translation:
         d.get("processing", {}).pop("orientation_convention", None)
+    if ignore_engine_version and "engine_version" in d.get("atap", {}):
+        # Preserve the member's presence and all other provenance/scientific fields.
+        d["atap"]["engine_version"] = "<engine-version>"
     return d
+
+
+def digest(document):
+    serialized = json.dumps(document, sort_keys=True, separators=(",", ":"),
+                            ensure_ascii=False, allow_nan=False).encode("utf-8")
+    return hashlib.sha256(serialized).hexdigest()
 
 
 def diff(a, b, path="$", out=None, limit=20):
@@ -54,10 +60,29 @@ def diff(a, b, path="$", out=None, limit=20):
 
 
 if __name__ == "__main__":
-    paths = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
-    problems = diff(canonical(paths[0]), canonical(paths[1]))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("baseline")
+    parser.add_argument("candidate", nargs="?")
+    parser.add_argument("--ignore-engine-version", action="store_true",
+                        help="Normalize only atap.engine_version for explicit cross-version comparisons")
+    parser.add_argument("--allow-orientation-translation", action="store_true")
+    parser.add_argument("--digest", action="store_true", help="Print one canonical SHA-256 instead of comparing")
+    args = parser.parse_args()
+    options = dict(ignore_engine_version=args.ignore_engine_version,
+                   allow_orientation_translation=args.allow_orientation_translation)
+    baseline = canonical(args.baseline, **options)
+    if args.digest:
+        if args.candidate:
+            parser.error("--digest accepts one input")
+        print(digest(baseline))
+        raise SystemExit(0)
+    if not args.candidate:
+        parser.error("candidate is required unless --digest is selected")
+    problems = diff(baseline, canonical(args.candidate, **options))
     if problems:
         print("NOT EQUIVALENT (first differences):")
         print("\n".join("  " + p for p in problems))
         sys.exit(1)
     print("EQUIVALENT (ignoring process metadata and execution settings)")
+    if args.ignore_engine_version:
+        print("Cross-version mode: only atap.engine_version was additionally normalized.")
