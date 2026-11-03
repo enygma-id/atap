@@ -3,6 +3,7 @@ message: "If you use ATAP in research, publications, or software development, pl
 type: software
 title: "ATAP: ATAP Terrain-Aware Architectural Polygonization"
 version: 0.3.0
+date-released: 2026-11-03
 abstract: "Terrain-aware polygonization of building footprints and tree canopies from DSM and DTM, with canonical GIS geometry and optional building interoperability exports."
 
 authors:

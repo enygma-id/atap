@@ -2,12 +2,9 @@
 
 All notable public changes to ATAP should be documented here.
 
-## Unreleased
+## 0.3.0 - 2026-11-03
 
-Version 0.3.0 is prepared below; the publication date is not yet confirmed.
-Move these entries to a dated 0.3.0 section only when the release is approved.
-
-### Building interoperability exports (0.3.0 release candidate)
+### Building interoperability exports
 
 - generate opt-in GLB 2.0, CityJSON 1.1 and CityGML 2.0 LoD1 derivatives after
   validated building runs; unqualified CLI/server runs produce GeoJSON only;

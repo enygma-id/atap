@@ -2,18 +2,19 @@
 
 ## ADR-020 Derived building exports
 
-**Status:** Accepted for 0.3.0 development. **Change class:** E.
+**Status:** Accepted in v0.3.0. **Change class:** E.
 
 A separate post-processing service generates GLB, CityJSON 1.1 and CityGML 2.0
 LoD1 solids from validated building results. Canonical GeoJSON and scientific
-calculations remain unchanged. CLI/server building runs default to all formats;
-`--export none` retains GeoJSON-only execution. The Python engine API remains
-unchanged and a separate `export_file` helper exposes derivatives.
+calculations remain unchanged. CLI/server building runs default to canonical
+GeoJSON only; optional derivatives require explicit `--export` or
+`export_formats` selection. The Python engine API remains unchanged and a
+separate `export_file` helper exposes derivatives.
 
 The playground explicitly starts with GeoJSON only. Compact independent format
 buttons select additional GLB, CityJSON and CityGML derivatives, with GeoJSON
 always active. Reset restores that selection; tree mode hides building exports.
-This UI default does not change the CLI or omitted-field server default.
+The UI, CLI and omitted-field server default are all canonical GeoJSON only.
 
 Use one Building per object_id and geometry-bearing parts; retain the original
 parent_part_id as an attribute. No duplicate parent geometry or LoD2 claim.
@@ -387,9 +388,9 @@ property default inherited from the prototype.
 - These are additive metadata fields in profile 0.6. Geometry, hierarchy,
   vertical semantics, and numerical output are unaffected.
 
-## ADR-020 Version-only release provenance comparisons
+## ADR-021 Version-only release provenance comparisons
 
-**Status:** Accepted for 0.3.0 release preparation.
+**Status:** Accepted in v0.3.0.
 
 - Package and engine version 0.3.0 must appear in new output provenance;
   canonical profile remains 0.6. No scientific algorithm, parameter, geometry,

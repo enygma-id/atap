@@ -1,8 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
-# ATAP v0.3.0 — Building interoperability exports
+# ATAP v0.3.0: Building interoperability exports
 
-**Status:** release preparation; publication date and release approval pending.
-No DOI is assigned by this document. Keep the historical 0.2.0 release notes.
+**Release date:** 2026-11-03.
+
+Previous versions remain documented in the project changelog and their
+respective release notes.
 
 ## Building exports
 
@@ -46,22 +48,23 @@ stale success markers are invalidated on failed nonempty export attempts.
 See [Building exports](../building-exports.md) for units, reference support,
 attribute policies, atomicity limits and reproduction commands.
 
-## Validation evidence required for publication
+## Validation and conformance scope
 
-Before publishing these notes as a final release, inspect the exact candidate
-SHA's `export-conformance-<SHA>` and `release-metadata-<SHA>` CI artifacts.
-Required checks include cjval 0.10.0 for CityJSON 1.1, the complete official
-CityGML 2.0/GML 3.1.1 XSD graph, independent GDAL/cjio/trimesh read-back and
-solid/volume/bounds checks, val3dity 2.7.0, and Khronos glTF validation.
-CityGML solids are read independently into a supported validation interchange;
-val3dity is not claimed to accept GML directly.
+The v0.3.0 engineering validation workflow includes independently checked
+CityJSON 1.1, CityGML 2.0 and GLB 2.0 exports. It uses pinned validators and
+schema checks, plus geometry/solid read-back, volume and bounds comparisons,
+negative fixtures, source-hash preservation and regression tests.
 
-Evidence must include positive courtyard/concave/multipart/contacting-mass
-fixtures, negative corruption/overlap/missing-tool tests, canonical source hash
-preservation, same-environment repeatability, four goldens, worker determinism,
-browser online/offline, Windows/Linux regressions, and a fresh wheel install.
-Formal CFF validation and both sample integrity manifests are additional gates.
-These checks are not OGC certification or independent scientific peer review.
+The validation tooling includes cjval 0.10.0 for CityJSON 1.1, the official
+CityGML 2.0/GML 3.1.1 XSD graph, GDAL/cjio/trimesh and val3dity 2.7.0
+for independent geometry checks, and Khronos glTF validation. CityGML solids
+are converted to a supported validation interchange for val3dity; the
+project does not claim direct GML input support by val3dity.
+
+The repository CI also covers installed-wheel checks, historical golden output
+regressions, sample manifest verification, Python and browser environments,
+and formal CFF validation. These checks do **not** constitute formal OGC
+product certification or independent scientific peer review.
 
 ## Licensing and publication
 
@@ -70,8 +73,10 @@ ATAP source is **AGPL-3.0-only**. Included samples and tree models have separate
 license generated datasets. mapbox-earcut remains ISC; isolated cffconvert
 metadata validation is Apache-2.0. Their notices/provenance are recorded separately.
 
-Human review of rights, privacy, source contracts and redistribution is required
-for every sample. Version/date coherence, exact-commit CI evidence and an
-enabled organization-approved Zenodo integration must precede publication.
-Publishing a GitHub release, a Zenodo record/DOI and a PyPI package are separate
-authorized actions. See the [release checklist](release-checklist.md).
+Sample data rights, privacy, provenance and applicable redistribution terms
+remain governed by their respective documented licenses and project review.
+
+Software citation metadata is in [`CITATION.cff`](../../CITATION.cff).
+GitHub Release, Zenodo DOI archiving and PyPI publication are distinct actions.
+No DOI is asserted here unless the corresponding Zenodo record exists.
+See the [release checklist](release-checklist.md) for future releases.

@@ -20,7 +20,7 @@
 <p align="center">
   <strong>ATAP Terrain-Aware Architectural Polygonization</strong><br>
   GIS-native terrain-aware hierarchical 3D representation for buildings and tree canopies.<br>
-  Source version: <strong>v0.3.0</strong> (release preparation; publication pending)
+  Current release: <strong>v0.3.0</strong>
 </p>
 
 **Founded and stewarded by Enygma.**  
@@ -189,8 +189,8 @@ extrusions, without automatic roof reconstruction or formal LoD2/OGC
 certification claims. Unknown vertical datum stays explicitly unknown; no
 vertical-datum conversion is performed. See [Building exports](docs/building-exports.md)
 for supported references, attribute mappings and reproducible independent
-schema/geometry validation gates. Release approval requires their actual
-reports on the exact candidate commit.
+schema/geometry validation. These checks are separate from formal OGC
+product certification.
 
 ## Tree & Carbon Mode (`--mode tree`)
 
@@ -301,7 +301,7 @@ See [`ENTERPRISE.md`](./ENTERPRISE.md).
 |---|---|
 | Project | ATAP |
 | Expanded name | ATAP Terrain-Aware Architectural Polygonization |
-| Current public release | v0.2.0 |
+| Current public release | v0.3.0 (2026-11-03) |
 | Founding Organization | Enygma |
 | Project Steward | Enygma |
 | Legal entity | PT Enygma Solusi Negeri |
@@ -363,12 +363,13 @@ See:
 
 ## Status
 
-Current public release: **v0.2.0**.
+Current public release: **v0.3.0**, released on **3 November 2026**.
 
-ATAP v0.2.0 provides tested building and tree processing workflows, including
-terrain normalization, hierarchical GIS-native representation, tree-mode
-Individual Tree Detection, procedural trunk support, and documented sample
-datasets.
+ATAP v0.3.0 retains the building and tree processing workflows introduced in
+v0.2.0 and adds optional building interoperability exports to **CityJSON 1.1**,
+**CityGML 2.0 LoD1**, and **GLB 2.0**. Canonical GeoJSON profile **0.6** remains
+unchanged. Sample datasets, tree-mode outputs, and the established GIS-native
+representation remain available.
 
 Development remains active. Public APIs, schemas, algorithms, parameters, and
 output semantics may continue to evolve before a stable 1.0 release.

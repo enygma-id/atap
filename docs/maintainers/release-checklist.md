@@ -1,17 +1,18 @@
 # Release Checklist
 
-Before an official release, record the exact candidate commit, reviewer and
-evidence locations. Preparing a 0.3.0 source version does not publish it.
+Use this checklist for subsequent ATAP releases. Record the exact release
+commit, responsible reviewer and evidence locations for each publication.
+ATAP v0.3.0 is recorded in `CHANGELOG.md` and `release-notes-0.3.0.md`.
 
 - [ ] align pyproject, installed package, engine, CLI, CFF and editable lock versions;
-- [ ] confirm the publication date, move the 0.3.0 Unreleased entries to a dated
-      section, and set CFF `date-released` only when the date is verified;
+- [ ] confirm the release date, move its changes from Unreleased to a dated
+      changelog section, and set CFF `date-released` to the verified date;
 - [ ] run `uv lock` when metadata changes and inspect the resulting diff;
 - [ ] run `uv sync --extra dev --locked`;
 - [ ] run Ruff and the complete pytest suite;
 - [ ] validate all four reference cases and worker determinism;
 - [ ] for version-only changes, preserve historical golden files/hashes and run
-      `python tests/golden/verify.py .cache/baseline --ignore-engine-version --expected-engine-version 0.3.0`;
+      `python tests/golden/verify.py .cache/baseline --ignore-engine-version --expected-engine-version "$RELEASE_VERSION"`;
       same-version worker comparisons remain strict;
 - [ ] run playground e2e online and offline;
 - [ ] validate every complete golden against the profile JSON Schema;
