@@ -104,3 +104,48 @@ def test_unexpected_error_returns_4(monkeypatch, capsys, tmp_path: Path):
     ])
     assert code == 4
     assert "ZeroDivisionError" in capsys.readouterr().err
+
+
+def test_default_cli_run_does_not_call_exporter(monkeypatch, tmp_path):
+    import atap.exports
+    monkeypatch.setattr(atap.cli, 'run_elevation', lambda *a,**kw: {'cancelled':False})
+    def unexpected(*args, **kwargs):
+        raise AssertionError('Canonical-only run must not call any derivative writer')
+    monkeypatch.setattr(atap.exports, 'export_file', unexpected)
+    monkeypatch.setitem(sys.modules,'atap.exports',None)
+    common = ['run','--input-geojson','footprints.geojson','--dsm','dsm.tif','--dtm','dtm.tif',
+              '--output',str(tmp_path/'result.geojson'),'--quiet']
+    assert atap.cli.main(common) == 0
+    assert atap.cli.main([*common,'--export','none']) == 0
+
+
+def test_explicit_cli_format_selections(synthetic, tmp_path):
+    dataset = synthetic/'stepped'
+    base = ['run','--input-geojson',str(dataset/'footprints.geojson'),
+            '--dsm',str(dataset/'dsm.tif'),'--dtm',str(dataset/'dtm.tif'),'--workers','1','--quiet']
+    for index,(selection, expected) in enumerate([(None,set()),('none',set()),('cityjson,citygml',{'cityjson','citygml'}),
+                                                ('all',{'glb','cityjson','citygml'})]):
+        directory = tmp_path/f'selection-{index}'
+        directory.mkdir()
+        source = directory/'result.geojson'
+        args = [*base,'--output',str(source)]
+        if selection is not None:
+            args += ['--export',selection]
+        result = invoke(*args)
+        assert result.returncode == 0, result.stderr
+        assert source.exists()
+        if expected:
+            manifest = json.loads(source.with_suffix('.exports.json').read_text())
+            assert set(manifest['artifacts']) == expected
+        else:
+            assert not source.with_suffix('.exports.json').exists()
+            assert not list(directory.glob('*.glb'))
+
+
+def test_tree_rejects_explicit_building_exports(tmp_path):
+    for selection in ('all','cityjson,citygml'):
+        result = invoke('run','--mode','tree','--input-geojson','missing.geojson',
+                        '--dsm','missing.tif','--dtm','missing.tif',
+                        '--output',str(tmp_path/'result.geojson'),'--export',selection)
+        assert result.returncode == 2
+        assert 'Building exports do not support tree mode' in result.stderr

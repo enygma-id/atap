@@ -232,10 +232,16 @@ def test_real_cli_job_and_disguised_vrt(tmp_path: Path, synthetic: Path):
 
         first_output = client.get(f"/api/jobs/{job_id}/artifacts/output").json()
         result = client.get(f"/api/jobs/{job_id}").json()["result"]
-        assert set(result["exports"]) == {"glb", "cityjson", "citygml"}
+        assert 'exports' not in result
+        assert manager.jobs[job_id].export_formats == 'none'
+        explicit = client.post('/api/jobs', data={'source_job_id':job_id, 'export_formats':'all'})
+        explicit_id = explicit.json()['job_id']
+        assert _wait(manager, explicit_id, {'completed','failed'}, 30) == 'completed'
+        result = client.get(f'/api/jobs/{explicit_id}').json()['result']
+        assert set(result['exports']) == {'glb','cityjson','citygml'}
         for kind, media in (("glb", "model/gltf-binary"), ("cityjson", "application/json"),
                             ("citygml", "application/gml+xml"), ("exports", "application/json")):
-            artifact = client.get(f"/api/jobs/{job_id}/artifacts/{kind}")
+            artifact = client.get(f"/api/jobs/{explicit_id}/artifacts/{kind}")
             assert artifact.status_code == 200
             assert artifact.headers["content-type"].startswith(media)
             assert "atap_" in artifact.headers["content-disposition"]
@@ -251,10 +257,11 @@ def test_real_cli_job_and_disguised_vrt(tmp_path: Path, synthetic: Path):
             output["processing"].pop("execution")
         assert first_output == second_output
         selected = client.post("/api/jobs", data={"source_job_id": job_id,
-                               "params": '{"workers":1}', "export_formats": "cityjson"})
+                               "params": '{"workers":1}', "export_formats": "cityjson,citygml"})
         selected_id = selected.json()["job_id"]
         assert _wait(manager, selected_id, {"completed", "failed"}, 30) == "completed"
         assert client.get(f"/api/jobs/{selected_id}/artifacts/cityjson").status_code == 200
+        assert client.get(f"/api/jobs/{selected_id}/artifacts/citygml").status_code == 200
         assert client.get(f"/api/jobs/{selected_id}/artifacts/glb").status_code == 404
         invalid = client.post("/api/jobs", data={"source_job_id": job_id, "export_formats": "../bad"})
         assert invalid.status_code == 422
@@ -360,4 +367,14 @@ def test_docs_endpoint(tmp_path: Path):
         assert client.get("/docs/non_existent.md").status_code == 404
         # Traversal protection
         assert client.get("/docs/../../etc/passwd").status_code in (404, 400)
+
+
+@pytest.mark.parametrize('selection',['all','cityjson,citygml'])
+def test_tree_server_rejects_building_derivatives(tmp_path,selection):
+    config = ServerConfig(work_dir=tmp_path)
+    with TestClient(create_app(config)) as client:
+        response = client.post('/api/jobs',files=_files(),data={
+            'params':'{"mode":"tree"}','export_formats':selection})
+        assert response.status_code == 422
+        assert 'tree mode' in response.json()['detail']
 

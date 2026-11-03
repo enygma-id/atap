@@ -1,0 +1,358 @@
+{
+  "citygml_root": "https://schemas.opengis.net/citygml/profiles/base/2.0/CityGML.xsd",
+  "cityjson_root": "https://raw.githubusercontent.com/cityjson/specs/1.1.3/schemas/cityjson.schema.json",
+  "schema_versions": {
+    "cityjson": "1.1.3",
+    "citygml": "2.0",
+    "gml": "3.1.1"
+  },
+  "schema_licenses": {
+    "cityjson": "CC0-1.0",
+    "citygml_gml": "OGC Software Notice (embedded in schemas)",
+    "xal": "OASIS copyright notice (embedded in schema)",
+    "w3c": "W3C Software and Document Notice (embedded)"
+  },
+  "tools": {
+    "cjval": {
+      "version": "0.10.0",
+      "commit": "40db6dd698cfe9de5a88a4a1aac4a5173095d86f"
+    },
+    "val3dity": {
+      "version": "2.7.0",
+      "commit": "fbe9e4d65376e1c3f63401f15967485783f78c0a",
+      "windows_zip_sha256": "cf8d3f025cd52aafc9ea370296a2430baa4aa39ce44a8b3ba1d8b3a540d8a5a7"
+    }
+  },
+  "sources": [
+    {
+      "url": "https://docs.oasis-open.org/election/external/xAL.xsd",
+      "kind": "xsd",
+      "bytes": 74544,
+      "sha256": "cc8353e803f2ccb594cea247b00935477d672f2c5b5affc95a04cb3721a50f0e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/cityjson/specs/1.1.3/schemas/appearance.schema.json",
+      "kind": "json-schema",
+      "bytes": 1755,
+      "sha256": "48c560eb4e3aca9670b2e027c2da47e1f20dea99d9951cd9c21b780f078da5d8"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/cityjson/specs/1.1.3/schemas/cityjson.schema.json",
+      "kind": "json-schema",
+      "bytes": 6825,
+      "sha256": "90a241f3cf4b2bb2f0aec15c7a8cb4499cc6fbdca9d10f1f262980a935a83f73"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/cityjson/specs/1.1.3/schemas/cityobjects.schema.json",
+      "kind": "json-schema",
+      "bytes": 33843,
+      "sha256": "4cda6b5b24afea71986c14c8fb0dda990533488a99caa5c63876fa873a370045"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/cityjson/specs/1.1.3/schemas/geomprimitives.schema.json",
+      "kind": "json-schema",
+      "bytes": 18675,
+      "sha256": "e558f262035ebd8aa67ffd0e6598c220b3ee9d632e142f6c4ecdcc125e97aa9b"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/cityjson/specs/1.1.3/schemas/geomtemplates.schema.json",
+      "kind": "json-schema",
+      "bytes": 874,
+      "sha256": "42cf7413d79f8c4ceeb5ea3b5a6e50adc1c41181499e45add468aa5eb04b0cf0"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/cityjson/specs/1.1.3/schemas/metadata.schema.json",
+      "kind": "json-schema",
+      "bytes": 2303,
+      "sha256": "a09d810f3728c1564c760bf4ee53fb61701dfbeed96c68b8d35fd86053e78568"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/2.0/cityGMLBase.xsd",
+      "kind": "xsd",
+      "bytes": 22276,
+      "sha256": "f87fe8de043a835ca6dedef7d198ac53fbe0aa8d6496b4d230145c765f38f431"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/appearance/2.0/appearance.xsd",
+      "kind": "xsd",
+      "bytes": 20646,
+      "sha256": "4199977b3c2775f7382cb49820a05d65270261fdbcf96ec40e196d1165d25eb3"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/bridge/2.0/bridge.xsd",
+      "kind": "xsd",
+      "bytes": 38656,
+      "sha256": "9fd548e0e20d1c47973f04ef40721cac82160e766ed2ee36bc5a4f2c5a656cb6"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/building/2.0/building.xsd",
+      "kind": "xsd",
+      "bytes": 35765,
+      "sha256": "906c8f7ed29ed6352b8d1372661a80de113794c938c4a0865ef2d7bdb38e7d15"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/cityfurniture/2.0/cityFurniture.xsd",
+      "kind": "xsd",
+      "bytes": 4187,
+      "sha256": "4acc55c502ede8d009b589a7f7a9a173d113730a903c36a744463e99e2ee253f"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/cityobjectgroup/2.0/cityObjectGroup.xsd",
+      "kind": "xsd",
+      "bytes": 5980,
+      "sha256": "abdbab7e0ce8b475c4b1f6e7086eecea8b6df6ca29daa0b0e90b3d55894e5936"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/generics/2.0/generics.xsd",
+      "kind": "xsd",
+      "bytes": 10753,
+      "sha256": "47b8bd89589ef221c3b97fe7a707cd867a14fa299010be8f27e99e0970c12d29"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/landuse/2.0/landUse.xsd",
+      "kind": "xsd",
+      "bytes": 3530,
+      "sha256": "f98bdec0bc3ab81cc89e1574ffa7e0244042a4bae409ac9a971bed09c3247d8d"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/profiles/base/2.0/CityGML.xsd",
+      "kind": "xsd",
+      "bytes": 3065,
+      "sha256": "a511ec64ec364134fbcc2ebe0958c87289ac318490e6e539aa2b38fc4bcc6e68"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/relief/2.0/relief.xsd",
+      "kind": "xsd",
+      "bytes": 11641,
+      "sha256": "9cafca7d53f9d0fd9f2991fcb6d1abd527dcb6bd8394c01c977834c5ce2343fc"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/texturedsurface/2.0/texturedSurface.xsd",
+      "kind": "xsd",
+      "bytes": 10065,
+      "sha256": "af9b0e17621afd64758926432ec52715ac8369acc9e0ac353650892cb555bf0f"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/transportation/2.0/transportation.xsd",
+      "kind": "xsd",
+      "bytes": 14516,
+      "sha256": "61623e4c11dc0dc914ba905cb797481d2bbd2e512ea35094a55b0f3527c52369"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/tunnel/2.0/tunnel.xsd",
+      "kind": "xsd",
+      "bytes": 33189,
+      "sha256": "e340351793ed8db7e980a89a632468ef41fa16ba2a57ea58535373d7db060dc9"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/vegetation/2.0/vegetation.xsd",
+      "kind": "xsd",
+      "bytes": 7667,
+      "sha256": "c9b3d43504399876d94d124c5f7af7f811c3259795ff69888a9d90aa619b2864"
+    },
+    {
+      "url": "https://schemas.opengis.net/citygml/waterbody/2.0/waterBody.xsd",
+      "kind": "xsd",
+      "bytes": 10996,
+      "sha256": "150ffcbb3c822236741e9efb60612ce05f8d5db96b911ab2f808cbc493992b16"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/basicTypes.xsd",
+      "kind": "xsd",
+      "bytes": 14000,
+      "sha256": "1ad3ab76ce16b5d272d3b2adad25144eef5c340dcf4709f360ecbc092dc9111e"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/coordinateOperations.xsd",
+      "kind": "xsd",
+      "bytes": 45708,
+      "sha256": "31e238a7625bb6f08d3b7f2d8cadd3817e0ccb269279ce0d4134d5848ad824b3"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/coordinateReferenceSystems.xsd",
+      "kind": "xsd",
+      "bytes": 22654,
+      "sha256": "5d194502380d66f6750c481f68ffbabefb4a8790dbebb4e3047135a871b29f83"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/coordinateSystems.xsd",
+      "kind": "xsd",
+      "bytes": 23619,
+      "sha256": "ba5d4d351d1ecc275abaa88bc3f4e263526e869056ec8d11b6b4cfa6cf1eb5fd"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/coverage.xsd",
+      "kind": "xsd",
+      "bytes": 21445,
+      "sha256": "68f46c8de0c0ccd9ccd02b0f490117edc2ca8d57c0609796173f2f4c658dabb3"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/dataQuality.xsd",
+      "kind": "xsd",
+      "bytes": 6673,
+      "sha256": "5e0398809ebf1885b04f413df12569a7eddc7773975db1ad3e57329b844a8151"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/datums.xsd",
+      "kind": "xsd",
+      "bytes": 25708,
+      "sha256": "68b341e83a6b7132e1ee63f8fcffadc5125a2bdbdda2e7d1a5611d8162ae4649"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/defaultStyle.xsd",
+      "kind": "xsd",
+      "bytes": 19358,
+      "sha256": "365b26485e119440901a25dd46886de12cfd2b0f27d8b465f1c506afa275d5a3"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/dictionary.xsd",
+      "kind": "xsd",
+      "bytes": 9123,
+      "sha256": "0c031a4cf085a1e495a85762172a13c5221c25af23007b3328f95ecc63601b79"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/direction.xsd",
+      "kind": "xsd",
+      "bytes": 3146,
+      "sha256": "6dcede87a2fec8d9daa1fcd605a5596481c528147990ca0856c33e60bee066f7"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/dynamicFeature.xsd",
+      "kind": "xsd",
+      "bytes": 5237,
+      "sha256": "a17d6b052cb75ed6b342f9d7526b642daf31b715e588bc3b72cb0068a18b6afe"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/feature.xsd",
+      "kind": "xsd",
+      "bytes": 9163,
+      "sha256": "36dd578e74bfc913e7b8f78e1003a98bbabaadb693ea7d577dcb7ae8b5d86806"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/geometryAggregates.xsd",
+      "kind": "xsd",
+      "bytes": 28321,
+      "sha256": "b438f20abb5697b87d68979c44021117a859bbb8f0bdf44488c68bfc8145ca2b"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/geometryBasic0d1d.xsd",
+      "kind": "xsd",
+      "bytes": 33037,
+      "sha256": "addfe8997866b9b19e06dcab4c36ec99a23cc352c9d66ca0c0dbac9b245d8421"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/geometryBasic2d.xsd",
+      "kind": "xsd",
+      "bytes": 12965,
+      "sha256": "f70d60629adf0e6cb17a735c0aa1367d4073458822c4a89e1034cfffebd050a9"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/geometryComplexes.xsd",
+      "kind": "xsd",
+      "bytes": 8022,
+      "sha256": "2ce094104fa5bde175fe1246e2c2612ae16862bd730b16896e04146954f7cb3d"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/geometryPrimitives.xsd",
+      "kind": "xsd",
+      "bytes": 89625,
+      "sha256": "298d359d83610e0c0efd4ae14bdd3d38ab6167e08b065bfb72e66a209cac70fe"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/gml.xsd",
+      "kind": "xsd",
+      "bytes": 1262,
+      "sha256": "b7fcaf63660b8f9505c383edaf7ed4aa25d0750129eeb3819e1654dd996ff755"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/gmlBase.xsd",
+      "kind": "xsd",
+      "bytes": 17869,
+      "sha256": "5853e7faf42272adeb8dea0c7739243fc5221228dd4ac2f16ea4eaf30ac67709"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/grids.xsd",
+      "kind": "xsd",
+      "bytes": 3863,
+      "sha256": "184a953eb4ee6bfe17c62e2a407446af602782d167916f1b7b2c0529f22114cd"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/measures.xsd",
+      "kind": "xsd",
+      "bytes": 11121,
+      "sha256": "c53bf83033bf989baa6ca50d956a46f90b23862ae2463879b9051d779ecdfaec"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/observation.xsd",
+      "kind": "xsd",
+      "bytes": 4427,
+      "sha256": "000a77173d4979e2cad9d696d173abad2d30c807e197f2cf05c45dc9e294187d"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/referenceSystems.xsd",
+      "kind": "xsd",
+      "bytes": 12076,
+      "sha256": "d07424782a210b1719e3131a104a1f95dbd84ee789a9e8fed4f7d2a6c11c2b57"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/temporal.xsd",
+      "kind": "xsd",
+      "bytes": 15600,
+      "sha256": "208f43442ebcf91666885396d2cac5dc06cb8da880a30bf26902d56fe2acbfe3"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/temporalReferenceSystems.xsd",
+      "kind": "xsd",
+      "bytes": 13170,
+      "sha256": "a849439f6cf97b6f1ddc5ec6d0eace9d96d234cd6003277eab6787855b330e6e"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/temporalTopology.xsd",
+      "kind": "xsd",
+      "bytes": 10103,
+      "sha256": "c507feed9f9393e616c887189a6ad4dfb227e0cb51d9410a2f80dce395266925"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/topology.xsd",
+      "kind": "xsd",
+      "bytes": 21797,
+      "sha256": "08cbe50aa848765dfecda183106a91cc533e9615f46e0feebcc9d6d03d9ab23e"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/units.xsd",
+      "kind": "xsd",
+      "bytes": 11368,
+      "sha256": "d7044a7aac4f4ed239dc5d6075cb9d8ce3cbf821472fb9bc3ac0007037052055"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/base/valueObjects.xsd",
+      "kind": "xsd",
+      "bytes": 18439,
+      "sha256": "3e2eb6a488ec4ed70089b9ec8edc0d830305dd5efc8c754b6dec57566332679d"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/smil/smil20-language.xsd",
+      "kind": "xsd",
+      "bytes": 5155,
+      "sha256": "71a6af850b0701b34c594ba749ed42ce621cf669b3cb0ec339ce9dd254314787"
+    },
+    {
+      "url": "https://schemas.opengis.net/gml/3.1.1/smil/smil20.xsd",
+      "kind": "xsd",
+      "bytes": 9628,
+      "sha256": "3e5224ef365247c202680e64d8e7bba4882697bc38442bbb883a8dd12cb86315"
+    },
+    {
+      "url": "https://www.w3.org/1999/xlink.xsd",
+      "kind": "xsd",
+      "bytes": 8322,
+      "sha256": "c3dbbaa28b884377ecd4a6c49d1f12566d8227cb0dce8ced10c0f66f8fa266e3"
+    },
+    {
+      "url": "https://www.w3.org/2001/xml.xsd",
+      "kind": "xsd",
+      "bytes": 8836,
+      "sha256": "61960fb3131e38022caad5360e2f33a3382578ab3c80cd58bd74320ede61b20c"
+    }
+  ]
+}

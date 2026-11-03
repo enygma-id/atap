@@ -138,7 +138,7 @@ class H(BaseHTTPRequestHandler):
                 for k, name in (("footprint", "footprint.geojson"), ("dsm", "dsm.tif"), ("dtm", "dtm.tif")): open(os.path.join(d, name), "wb").write(fields[k])
                 fc = json.loads(fields["footprint"]); count = len(fc.get("features", []))
             params = json.loads(fields.get("params", b"{}"))
-            selection = fields.get("export_formats", b"none" if params.get("mode") == "tree" else b"all").decode()
+            selection = fields.get("export_formats", b"none").decode()
             try:
                 parse_formats(selection)
             except Exception as exc:

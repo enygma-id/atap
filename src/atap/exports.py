@@ -20,6 +20,7 @@ from pathlib import Path
 import mapbox_earcut
 import numpy as np
 from pyproj import CRS, Transformer
+from pyproj.crs import CompoundCRS
 from pyproj.exceptions import CRSError
 from shapely.geometry import shape
 from shapely.geometry.polygon import orient
@@ -106,9 +107,12 @@ def _prepare(doc, cancel):
         raise AtapInputError("Exports require a projected working CRS in metres.")
     project = Transformer.from_crs(4326, crs, always_xy=True).transform
     parts = []
+    if not doc['features']:
+        raise AtapValidationError(['Building exports require at least one part.'])
     for feature in doc["features"]:
         _check_cancel(cancel)
         props = feature["properties"]
+        _finite_json(props, props['part_id'])
         base, top = float(props["base_elevation_m"]), float(props["top_elevation_m"])
         if not math.isfinite(base) or not math.isfinite(top) or top <= base:
             raise AtapValidationError([f"{props['part_id']}: export requires positive finite height."])
@@ -122,6 +126,47 @@ def _prepare(doc, cancel):
                                        for problem in exc.problems]) from exc
         parts.append({"properties": props, "shells": shells})
     return crs, parts
+
+
+def _finite_json(value, context):
+    if isinstance(value, float) and not math.isfinite(value):
+        raise AtapValidationError([f'{context}: non-finite export attribute.'])
+    if isinstance(value, dict):
+        for key, child in value.items():
+            _finite_json(child, f'{context}.{key}')
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _finite_json(child, f'{context}[{index}]')
+
+
+def _reference_system(crs, doc):
+    """An explicit vertical EPSG CRS may qualify Z; a datum label never does."""
+    epsg = crs.to_epsg()
+    if not epsg:
+        raise AtapInputError('Building exports require an EPSG horizontal working CRS.')
+    uri = f'https://www.opengis.net/def/crs/EPSG/0/{epsg}'
+    srs = f'urn:ogc:def:crs:EPSG::{epsg}'
+    datum = doc.get('vertical_reference', {}).get('vertical_datum')
+    reference = {'horizontal_crs': crs.to_string(), 'vertical_crs': None,
+                 'vertical_datum': datum, 'vertical_status': 'unknown' if not datum else 'label_only',
+                 'coordinate_order': ['East', 'North', 'Up'], 'units': ['m', 'm', 'm']}
+    if isinstance(datum, str) and datum.upper().startswith('EPSG:'):
+        try:
+            vertical = CRS.from_user_input(datum)
+        except CRSError as exc:
+            raise AtapInputError(f'Invalid explicit vertical CRS: {datum}.') from exc
+        if not vertical.is_vertical or any(abs(a.unit_conversion_factor - 1) > 1e-9
+                                           for a in vertical.axis_info):
+            raise AtapInputError('Explicit vertical CRS must be a vertical CRS in metres.')
+        vepsg = vertical.to_epsg()
+        compound = CompoundCRS('ATAP horizontal and explicit vertical reference', [crs, vertical])
+        compound_epsg = compound.to_epsg()
+        uri = f'https://www.opengis.net/def/crs/EPSG/0/{compound_epsg}' if compound_epsg else None
+        srs = (f'urn:ogc:def:crs:EPSG::{compound_epsg}' if compound_epsg else
+               f'urn:ogc:def:crs,crs:EPSG::{epsg},crs:EPSG::{vepsg}')
+        reference.update(vertical_crs=vertical.to_string(), vertical_status='explicit_crs',
+                         compound_epsg=compound_epsg, compound_wkt=compound.to_wkt())
+    return uri, srs, reference
 
 
 def _id(prefix, value):
@@ -161,22 +206,22 @@ def _write_cityjson(path, parts, crs, doc, cancel):
             for face in shell:
                 ring = [vertex(point) for point in face]
                 if len(set(ring)) != len(ring):
-                    raise AtapValidationError(["CityJSON millimetre quantization collapses an edge."])
+                    raise AtapValidationError([f"{props['part_id']}: CityJSON millimetre quantization collapses an edge."])
                 faces.append([ring])
             solids.append([faces])
         objects[pid] = {"type": "BuildingPart", "parents": [building_id],
                         "attributes": props, "geometry": [
                             {"type": "Solid", "lod": "1", "boundaries": solid} for solid in solids]}
-    epsg = crs.to_epsg()
     decoded = np.asarray(vertices, dtype=np.float64) * scale + origin
     metadata = {"title": doc.get("name", "ATAP buildings"),
                 "geographicalExtent": [*decoded.min(axis=0), *decoded.max(axis=0)]}
-    if epsg:
-        metadata["referenceSystem"] = f"https://www.opengis.net/def/crs/EPSG/0/{epsg}"
+    reference_uri = _reference_system(crs, doc)[0]
+    if reference_uri is None:
+        raise AtapInputError('CityJSON 1.1 requires a registered compound EPSG CRS for an explicit vertical CRS; use a supported combination or select CityGML/GLB.')
+    metadata["referenceSystem"] = reference_uri
     result = {"type": "CityJSON", "version": "1.1", "CityObjects": objects,
               "vertices": vertices, "transform": {"scale": [scale] * 3, "translate": origin.tolist()},
-              "metadata": metadata, "atap": {"vertical_reference": doc.get("vertical_reference", {}),
-                                            "working_crs": crs.to_string()}}
+              "metadata": metadata}
     _json(path, result)
 
 
@@ -203,15 +248,34 @@ def _el(parent, ns, tag, text=None, **attrs):
     return child
 
 
+def _generic(value):
+    if value is None:
+        return None, None, None
+    if isinstance(value, bool):
+        return 'stringAttribute', str(value).lower(), None
+    if isinstance(value, int):
+        if -(2**31) <= value < 2**31:
+            return 'intAttribute', str(value), None
+        return 'stringAttribute', str(value), 'integer outside int32 retained as string'
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise AtapValidationError(['Non-finite CityGML numeric attribute.'])
+        return 'doubleAttribute', repr(value), None
+    if isinstance(value, (dict, list)):
+        return 'stringAttribute', json.dumps(value, ensure_ascii=False, sort_keys=True,
+                                            allow_nan=False, separators=(',', ':')), None
+    return 'stringAttribute', str(value), None
+
+
 def _write_citygml(path, parts, crs, doc, cancel):
+    warnings = []
     model = ET.Element(f"{{{CORE}}}CityModel")
     model.set("{http://www.w3.org/2001/XMLSchema-instance}schemaLocation",
               f"{BLDG} https://schemas.opengis.net/citygml/building/2.0/building.xsd "
               f"{GEN} https://schemas.opengis.net/citygml/generics/2.0/generics.xsd")
     _el(model, GML, "description", json.dumps({"working_crs": crs.to_string(),
         "vertical_reference": doc.get("vertical_reference", {})}, ensure_ascii=False))
-    epsg = crs.to_epsg()
-    srs = f"urn:ogc:def:crs:EPSG::{epsg}" if epsg else crs.to_wkt()
+    srs = _reference_system(crs, doc)[1]
     xyz = _points(parts)
     envelope = _el(_el(model, GML, "boundedBy"), GML, "Envelope", srsName=srs, srsDimension="3")
     _el(envelope, GML, "lowerCorner", " ".join(map(str, xyz.min(axis=0))))
@@ -226,11 +290,19 @@ def _write_citygml(path, parts, crs, doc, cancel):
                                  **{f"{{{GML}}}id": _id("b_", oid)})
         node = _el(_el(buildings[oid], BLDG, "consistsOfBuildingPart"), BLDG, "BuildingPart",
                    **{f"{{{GML}}}id": _id("p_", props["part_id"])})
-        if props.get("name"):
+        standard_name = isinstance(props.get('name'), str) and bool(props['name'])
+        if standard_name:
             _el(node, GML, "name", props["name"])
         for key, value in sorted(props.items()):
-            attr = _el(node, GEN, "stringAttribute", name=key)
-            _el(attr, GEN, "value", json.dumps(value, ensure_ascii=False))
+            if key == 'name' and standard_name:
+                continue
+            kind, text, warning = _generic(value)
+            if kind is None:
+                continue
+            attr = _el(node, GEN, kind, name=key)
+            _el(attr, GEN, 'value', text)
+            if warning:
+                warnings.append(f"{props['part_id']}: CityGML {key}: {warning}")
         if len(part["shells"]) == 1:
             containers = [_el(node, BLDG, "lod1Solid")]
         else:
@@ -249,6 +321,7 @@ def _write_citygml(path, parts, crs, doc, cancel):
                 ring = _el(_el(polygon, GML, "exterior"), GML, "LinearRing")
                 _el(ring, GML, "posList", " ".join(format(v, ".9f") for p in face + face[:1] for v in p))
     ET.ElementTree(model).write(path, encoding="utf-8", xml_declaration=True)
+    return warnings
 
 
 def _write_glb(path, parts, crs, doc, cancel):
@@ -316,6 +389,101 @@ def _json(path, value):
                                separators=(",", ":")), encoding="utf-8")
 
 
+def _volume(faces):
+    origin = np.asarray(faces[0][0], dtype=np.float64)
+    total, area = 0.0, 0.0
+    for face in faces:
+        points = np.asarray(face, dtype=np.float64) - origin
+        face_area = 0.0
+        for i in range(1, len(face) - 1):
+            cross = np.cross(points[i] - points[0], points[i+1] - points[0])
+            face_area += np.linalg.norm(cross) / 2
+            total += np.dot(points[0], np.cross(points[i], points[i+1])) / 6
+        if face_area <= 0:
+            raise AtapValidationError(['Serialized shell contains a zero-area face.'])
+        area += face_area
+    return total, area
+
+
+def _check_serialized_shell(faces, expected, quantum):
+    points = np.asarray([p for face in faces for p in face])
+    original = np.asarray([p for face in expected for p in face])
+    if not np.isfinite(points).all():
+        raise AtapValidationError(['Serialized shell contains non-finite coordinates.'])
+    _validate_shell(faces)
+    volume, _ = _volume(faces)
+    reference_volume, surface_area = _volume(expected)
+    # A coordinate perturbation bound, not a claim of input measurement accuracy.
+    tolerance = surface_area * math.sqrt(3) * quantum + max(1e-8, reference_volume * 1e-9)
+    if volume <= 0 or abs(volume-reference_volume) > tolerance:
+        raise AtapValidationError(['Serialized shell has incorrect signed volume.'])
+    if any(not np.allclose(op(original, axis=0), op(points, axis=0), rtol=0,
+                           atol=quantum+1e-8) for op in (np.min, np.max)):
+        raise AtapValidationError(['Serialized shell changed coordinate bounds.'])
+
+
+def _validate_written(kind, path, parts):
+    """Read final bytes back; external schema/solid certification is not implied."""
+    if kind == 'cityjson':
+        doc = json.loads(path.read_text(encoding='utf-8'))
+        vertices = (np.asarray(doc['vertices']) * doc['transform']['scale']
+                    + doc['transform']['translate'])
+        for part in parts:
+            pid = part['properties']['part_id']
+            try:
+                geometries = doc['CityObjects'][_id('p_', pid)]['geometry']
+                if len(geometries) != len(part['shells']):
+                    raise AtapValidationError(['Serialized component count changed.'])
+                for geometry, expected in zip(geometries, part['shells']):
+                    faces = [vertices[face[0]].tolist() for face in geometry['boundaries'][0]]
+                    _check_serialized_shell(faces, expected, .001)
+            except AtapValidationError as exc:
+                raise AtapValidationError([f'{pid}: {p}' for p in exc.problems]) from exc
+    elif kind == 'citygml':
+        doc = ET.parse(path)
+        for part in parts:
+            pid = part['properties']['part_id']
+            node = doc.find(f'.//{{{BLDG}}}BuildingPart[@{{{GML}}}id="{_id("p_", pid)}"]')
+            solids = list(node.iter(f'{{{GML}}}Solid')) if node is not None else []
+            if len(solids) != len(part['shells']):
+                raise AtapValidationError([f'{pid}: serialized component count changed.'])
+            for solid, expected in zip(solids, part['shells']):
+                faces = []
+                for ring in solid.iter(f'{{{GML}}}posList'):
+                    points = np.fromstring(ring.text, sep=' ').reshape(-1, 3).tolist()
+                    if points[0] != points[-1]:
+                        raise AtapValidationError([f'{pid}: serialized GML ring is not closed.'])
+                    faces.append(points[:-1])
+                try:
+                    _check_serialized_shell(faces, expected, 1e-9)
+                except AtapValidationError as exc:
+                    raise AtapValidationError([f'{pid}: {p}' for p in exc.problems]) from exc
+    else:
+        raw = path.read_bytes()
+        if struct.unpack_from('<4sII', raw) != (b'glTF', 2, len(raw)):
+            raise AtapValidationError(['Invalid serialized GLB header.'])
+        length, kind_id = struct.unpack_from('<II', raw, 12)
+        if kind_id != 0x4E4F534A:
+            raise AtapValidationError(['Invalid GLB JSON chunk.'])
+        doc = json.loads(raw[20:20+length])
+        nodes = {n['extras']['part_id']: n for n in doc['nodes'] if 'mesh' in n}
+        origin = np.asarray(doc['extras']['origin_projected_m'])
+        for part in parts:
+            pid = part['properties']['part_id']
+            primitive = doc['meshes'][nodes[pid]['mesh']]['primitives'][0]
+            accessor = doc['accessors'][primitive['attributes']['POSITION']]
+            view = doc['bufferViews'][accessor['bufferView']]
+            positions = np.frombuffer(raw, dtype='<f4', count=accessor['count']*3,
+                                      offset=20+length+8+view['byteOffset']).reshape(-1,3)
+            quantum = max(float(np.abs(positions).max()), 1) * np.finfo(np.float32).eps * 2
+            xyz = np.column_stack((positions[:,0], -positions[:,2], positions[:,1])) + origin
+            faces = xyz.reshape(-1,3,3).tolist()
+            try:
+                _check_serialized_shell(faces, [f for s in part['shells'] for f in s], quantum)
+            except AtapValidationError as exc:
+                raise AtapValidationError([f'{pid}: {p}' for p in exc.problems]) from exc
+
+
 def export_file(source: str | Path, formats="all", *, cancel=None, log=None) -> dict:
     """Export a saved result; commit manifest last, leaving canonical bytes intact.
 
@@ -331,15 +499,29 @@ def export_file(source: str | Path, formats="all", *, cancel=None, log=None) -> 
     source = Path(source)
     if source.suffix.lower() not in (".json", ".geojson"):
         raise AtapInputError("Export source must have a .geojson or .json extension.")
-    problems = validate_file(source)
+    manifest_path = source.with_suffix('.exports.json')
+    manifest_path.unlink(missing_ok=True)
+    try:
+        problems = validate_file(source)
+    except (TypeError, ValueError, AttributeError, KeyError) as exc:
+        raise AtapValidationError([f'Cannot export malformed ATAP result: {exc}']) from exc
     if problems:
         raise AtapValidationError(["Cannot export invalid ATAP result: " + "; ".join(problems)])
-    doc = json.loads(source.read_text(encoding="utf-8"))
+    raw_source = source.read_bytes()
+    doc = json.loads(raw_source)
+    source_hash = hashlib.sha256(raw_source).hexdigest()
+    # A new attempt invalidates the previous bundle marker; old data files may
+    # remain, but cannot be mistaken for a newly validated selected bundle.
     crs, parts = _prepare(doc, cancel)
+    _finite_json(doc.get('vertical_reference', {}), 'vertical_reference')
     writers = {"glb": _write_glb, "cityjson": _write_cityjson, "citygml": _write_citygml}
     manifest = {"profile": "atap-building-solids-1", "lod": "1", "working_crs": crs.to_string(),
                 "vertical_reference": doc.get("vertical_reference", {}),
-                "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(), "artifacts": {}}
+                "source_sha256": source_hash, "artifacts": {},
+                "canonical_profile": doc.get('atap', {}).get('profile_version', '0.6'),
+                "coordinate_reference": _reference_system(crs, doc)[2], "warnings": [],
+                "validation": {"internal": "serialized geometry, identity and finite-value checks",
+                               "external": "not_run_at_runtime", "external_gate": "export-conformance CI"}}
     with tempfile.TemporaryDirectory(prefix=".atap-export-", dir=source.parent) as temp:
         stage = Path(temp)
         for kind in selected:
@@ -348,13 +530,27 @@ def export_file(source: str | Path, formats="all", *, cancel=None, log=None) -> 
                 log(f"[info] Exporting {kind} ...")
             name = source.stem + SUFFIXES[kind]
             path = stage / name
-            writers[kind](path, parts, crs, doc, cancel)
+            try:
+                manifest['warnings'].extend(writers[kind](path, parts, crs, doc, cancel) or [])
+                _validate_written(kind, path, parts)
+            except AtapValidationError as exc:
+                raise AtapValidationError([f'{kind}: {p}' for p in exc.problems]) from exc
+            except (ValueError, TypeError, KeyError, IndexError) as exc:
+                raise AtapValidationError([f'{kind}: invalid serialized export: {exc}']) from exc
             manifest["artifacts"][kind] = {"file": name, "bytes": path.stat().st_size,
-                "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "target_version": {'glb': '2.0', 'cityjson': '1.1', 'citygml': '2.0'}[kind]}
         _check_cancel(cancel)
+        if hashlib.sha256(source.read_bytes()).hexdigest() != source_hash:
+            raise AtapValidationError(['Canonical source changed during export; bundle not published.'])
         name = source.stem + ".exports.json"
-        _json(stage / name, manifest)
-        for artifact in manifest["artifacts"].values():
+        for kind, artifact in manifest["artifacts"].items():
             os.replace(stage / artifact["file"], source.parent / artifact["file"])
+            final = source.parent / artifact['file']
+            if final.stat().st_size != artifact['bytes'] or hashlib.sha256(final.read_bytes()).hexdigest() != artifact['sha256']:
+                raise AtapValidationError([f'{kind}: artifact bytes changed during publication.'])
+        _json(stage / name, manifest)
+        if hashlib.sha256(source.read_bytes()).hexdigest() != source_hash:
+            raise AtapValidationError(['Canonical source changed during publication; manifest not published.'])
         os.replace(stage / name, source.parent / name)
     return manifest
