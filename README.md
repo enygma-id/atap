@@ -23,6 +23,12 @@
   Current release: <strong>v0.3.0</strong>
 </p>
 
+<p align="center">
+  <a href="https://doi.org/10.5281/zenodo.23909308">
+    <img src="https://zenodo.org/badge/1364039811.svg" alt="ATAP DOI">
+  </a>
+</p>
+
 **Founded and stewarded by Enygma.**  
 Legal entity: **PT Enygma Solusi Negeri**
 

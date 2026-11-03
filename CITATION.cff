@@ -4,6 +4,11 @@ type: software
 title: "ATAP: ATAP Terrain-Aware Architectural Polygonization"
 version: 0.3.0
 date-released: 2026-11-03
+doi: "10.5281/zenodo.23909309"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.23909308"
+    description: "Zenodo concept DOI for all ATAP releases"
 abstract: "Terrain-aware polygonization of building footprints and tree canopies from DSM and DTM, with canonical GIS geometry and optional building interoperability exports."
 
 authors:
