@@ -46,7 +46,9 @@ def main():
         sample = args.out/'sample.geojson'
         sample.write_bytes(args.sample.read_bytes())
         before = hashlib.sha256(sample.read_bytes()).hexdigest()
-        code = ('import atap,pathlib; p=pathlib.Path(atap.__file__).resolve(); '
+        code = ('import atap,pathlib,importlib.metadata; from atap.engine.config import ENGINE_VERSION; '
+                'assert atap.__version__ == ENGINE_VERSION == importlib.metadata.version("atap") == "0.3.0"; '
+                'p=pathlib.Path(atap.__file__).resolve(); '
                 'assert "site-packages" in str(p); print(p); print(atap.__version__); '
                 'm=atap.export_file("sample.geojson","all"); '
                 'assert set(m["artifacts"])=={"glb","cityjson","citygml"}; '

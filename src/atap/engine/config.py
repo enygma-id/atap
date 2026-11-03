@@ -3,7 +3,7 @@
 
 from dataclasses import dataclass
 
-ENGINE_VERSION = "0.2.0"
+ENGINE_VERSION = "0.3.0"
 PROFILE_VERSION = "0.6"
 ANALYSIS_GRID_SOURCE = "DSM"
 DTM_RESAMPLING = "bilinear"

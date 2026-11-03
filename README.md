@@ -20,7 +20,7 @@
 <p align="center">
   <strong>ATAP Terrain-Aware Architectural Polygonization</strong><br>
   GIS-native terrain-aware hierarchical 3D representation for buildings and tree canopies.<br>
-  Current release: <strong>v0.2.0</strong>
+  Source version: <strong>v0.3.0</strong> (release preparation; publication pending)
 </p>
 
 **Founded and stewarded by Enygma.**  
@@ -133,11 +133,9 @@ See [`docs/gis-native-principles.md`](./docs/gis-native-principles.md).
 
 ## Quick Start
 
-Building CLI/server runs also generate GLB, CityJSON 1.1 and CityGML 2.0 LoD1
-derivatives. Use `--export none` for GeoJSON only, or select a subset with
-`--export glb,cityjson`. Existing results can be converted using
-`atap export result.geojson --formats all` without processing rasters again.
-See [Building exports](docs/building-exports.md) for coordinates and limitations.
+Building CLI/server runs generate canonical GeoJSON by default. Derived
+building formats require explicit selection; see
+[Building Interoperability Exports](#building-interoperability-exports).
 
 Python 3.10 or newer is required. End users can install the engine and local
 playground with pip:
@@ -170,10 +168,34 @@ See the [CLI](docs/cli.md), [playground](docs/playground.md),
 [tree requirements](docs/tree_requirements.md), and
 [output schema](docs/output-schema.md).
 
+## Building Interoperability Exports
+
+Optional **GLB 2.0**, **CityJSON 1.1**, and **CityGML 2.0 LoD1** derivatives
+preserve building part identities, elevation intervals, courtyards, disconnected
+components and source attributes. Request them with
+`atap run ... --export glb,cityjson,citygml`, or convert an existing canonical
+result without processing the rasters again:
+
+```sh
+atap export result.geojson --formats all
+```
+
+The playground starts with GeoJSON only; enable additional format buttons
+before Run. API clients select `export_formats` explicitly. Tree mode retains
+its own outputs and rejects building derivative selections.
+
+Canonical GeoJSON profile **0.6** remains unchanged. Derived solids are LoD1
+extrusions, without automatic roof reconstruction or formal LoD2/OGC
+certification claims. Unknown vertical datum stays explicitly unknown; no
+vertical-datum conversion is performed. See [Building exports](docs/building-exports.md)
+for supported references, attribute mappings and reproducible independent
+schema/geometry validation gates. Release approval requires their actual
+reports on the exact candidate commit.
+
 ## Tree & Carbon Mode (`--mode tree`)
 
-ATAP v0.2.0 extends the same terrain-aware GIS-native approach beyond building
-masses to tree canopies.
+Introduced in v0.2.0, tree mode extends the same terrain-aware GIS-native
+approach beyond building masses to tree canopies.
 
 Tree mode processes canopy polygons, DSM, and DTM into hierarchical LoD 1.3
 canopy volumes, procedural trunk representations, Individual Tree Detection

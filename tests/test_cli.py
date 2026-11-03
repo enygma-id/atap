@@ -17,7 +17,7 @@ def invoke(*args: str):
 def test_version():
     result = invoke("--version")
     assert result.returncode == 0
-    assert "engine 0.2.0, profile 0.6" in result.stdout
+    assert "engine 0.3.0, profile 0.6" in result.stdout
 
 
 def test_input_error_exit_code_and_jsonl(tmp_path: Path):

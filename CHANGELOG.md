@@ -4,10 +4,13 @@ All notable public changes to ATAP should be documented here.
 
 ## Unreleased
 
-### Building exports (0.3.0 development)
+Version 0.3.0 is prepared below; the publication date is not yet confirmed.
+Move these entries to a dated 0.3.0 section only when the release is approved.
 
-- generate GLB, CityJSON 1.1 and CityGML 2.0 LoD1 derivatives after validated
-  CLI/server building runs; select formats with `--export` or the playground;
+### Building interoperability exports (0.3.0 release candidate)
+
+- generate opt-in GLB 2.0, CityJSON 1.1 and CityGML 2.0 LoD1 derivatives after
+  validated building runs; unqualified CLI/server runs produce GeoJSON only;
 - add `atap export` and Python `export_file` for saved canonical results;
 - retain courtyards, components, part IDs, elevation intervals and attributes;
   publish source/artifact hashes in an export manifest;
@@ -17,6 +20,22 @@ All notable public changes to ATAP should be documented here.
 - replace the playground export dropdown with compact independent format
   buttons; default to GeoJSON only and allow any combination of derivatives;
 - canonical GeoJSON, scientific parameters and tree-mode outputs are unchanged.
+
+### Release metadata and verification
+
+- align package, engine, installed-distribution, editable lock and citation
+  versions at 0.3.0 while retaining canonical profile 0.6;
+- remove an obsolete missing-file entry from the tree sample integrity manifest;
+  verify both shipped sample manifests on all test platforms;
+- preserve historical 0.2.0 goldens and strict benchmark hashes; add an explicit
+  version-only comparison mode and separately normalized scientific digests;
+- reject scientific changes even in cross-version comparisons and independently
+  require freshly generated provenance to report engine version 0.3.0;
+- enforce formal CFF 1.2.0 validation, metadata consistency, pinned independent
+  export validators, solid/volume checks and fresh wheel installation in CI;
+- document typed CityGML Generics, CityJSON root compliance, honest vertical
+  references and final-byte/source-hash validation before manifest publication;
+- clarify sample-rights review and the separate human/Zenodo publication gates.
 
 ### Changed
 

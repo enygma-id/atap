@@ -1,5 +1,13 @@
 # Third-Party Notices
 
+## Release metadata validation
+
+- cffconvert 2.0.0 (Apache-2.0) validates CFF 1.2.0 in an isolated QA environment.
+  It is not an ATAP runtime dependency or bundled validator. The upstream
+  license copy is in `third-party/cffconvert/LICENSE`; distribution provenance
+  and SHA-256 are recorded in `third-party/MANIFEST.json`. Its dependencies
+  retain their upstream notices in that isolated installation.
+
 ## Building export geometry
 
 - mapbox-earcut (Python bindings by Samuel Kogler, Mapbox earcut.hpp): ISC.
