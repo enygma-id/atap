@@ -24,9 +24,9 @@
 </p>
 
 <p align="center">
-  <a href="https://doi.org/10.5281/zenodo.23909308">
-    <img src="https://zenodo.org/badge/1364039811.svg" alt="ATAP DOI">
-  </a>
+  <a href="https://doi.org/10.5281/zenodo.23909308"><img src="https://zenodo.org/badge/1364039811.svg" alt="ATAP DOI"></a>
+    &nbsp;
+  <a href="https://github.com/enygma-id/atap/actions/workflows/ci.yml" title="ATAP CI (main branch)"><img src="https://github.com/enygma-id/atap/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status (main)"></a>
 </p>
 
 **Founded and stewarded by Enygma.**  
