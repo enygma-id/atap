@@ -418,6 +418,9 @@ property default inherited from the prototype.
   versions when replacing floating tags so pinning does not introduce a migration.
 - Refresh pins through review of upstream provenance, release notes and changes;
   require the full CI matrix before merge and never auto-merge action updates.
-- This controls action source selection only. Hosted runner images and package
-  installation remain governed by their existing settings; scientific code,
-  canonical profile, outputs and runtime dependencies are unchanged.
+- Use Ubuntu 24.04 explicitly for Linux jobs. The moving ubuntu-latest label
+  migrated to Ubuntu 26.04 and changed benchmark orientation/dimension results;
+  an OS-generation upgrade needs separate scientific equivalence review.
+  Hosted image revisions and package installation still follow existing settings.
+  Scientific code, canonical profile, golden baselines and runtime dependencies
+  remain unchanged. Preserve failed golden JSON diagnostics for investigation.
