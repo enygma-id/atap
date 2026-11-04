@@ -6,6 +6,8 @@ All notable public changes to ATAP should be documented here.
 
 ### Security
 
+- add least-privilege CodeQL analysis for Python, JavaScript/TypeScript and Actions;
+
 - document private reporting, supported versions and coordinated response targets;
 
 - schedule weekly reviewed uv and GitHub Actions dependency updates;
