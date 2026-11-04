@@ -6,6 +6,8 @@ All notable public changes to ATAP should be documented here.
 
 ### Security
 
+- schedule weekly reviewed uv and GitHub Actions dependency updates;
+
 - add reviewed branch ruleset templates, code owners and independent review policy;
 
 - pin all CI actions to verified full commit SHAs, retain readable version
