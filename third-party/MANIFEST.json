@@ -49,7 +49,9 @@
     "scipy/LICENSE.txt",
     "shapely/LICENSE.txt",
     "shapely/LICENSE_GEOS",
-    "cffconvert/LICENSE"
+    "cffconvert/LICENSE",
+    "lxml/LICENSES.txt",
+    "certifi/LICENSE"
   ],
   "release_validation_tools": {
     "cffconvert": {
@@ -58,6 +60,24 @@
       "source_sha256": "b4379ee415c6637dc9e3e7ba196605cb3cedcea24613e4ea242c607d9e98eb50",
       "license": "Apache-2.0",
       "usage": "isolated QA tool; not an engine/runtime dependency"
+    }
+  },
+  "security_maintenance_sources": {
+    "lxml": {
+      "version": "6.1.0",
+      "source": "https://files.pythonhosted.org/packages/28/30/9abc9e34c657c33834eaf6cd02124c61bdf5944d802aa48e69be8da3585d/lxml-6.1.0.tar.gz",
+      "source_sha256": "bfd57d8008c4965709a919c3e9a98f76c2c7cb319086b3d26858250620023b13",
+      "license": "BSD-3-Clause",
+      "license_file": "lxml/LICENSES.txt",
+      "usage": "existing QA/transitive dependency; no new engine dependency"
+    },
+    "certifi": {
+      "version": "2026.10.23",
+      "source": "https://files.pythonhosted.org/packages/fd/11/b524cbd9bbdaca58608e4cf4053fd463417549e1959fa8d3aa18319f9555/certifi-2026.10.23.tar.gz",
+      "source_sha256": "a9895e6e2758b371e0545e321a3a8fd1fcfd9829ada8824a936dfb16aaaf36cd",
+      "license": "MPL-2.0",
+      "license_file": "certifi/LICENSE",
+      "usage": "existing QA/transitive dependency; no new engine dependency"
     }
   }
 }

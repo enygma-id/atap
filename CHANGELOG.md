@@ -6,6 +6,9 @@ All notable public changes to ATAP should be documented here.
 
 ### Security
 
+- upgrade QA lxml to 6.1.0 and transitive certifi to 2026.10.23 with verified
+  requirements hashes, preserving canonical output and regression baselines;
+
 - add least-privilege CodeQL analysis for Python, JavaScript/TypeScript and Actions;
 
 - document private reporting, supported versions and coordinated response targets;

@@ -6,13 +6,21 @@ is for engineering/CI, adds no engine runtime dependencies, and does not alter
 `pyproject.toml` or its dependency lock. Validator binaries are not bundled with
 the ATAP wheel. Fresh-install environments are excluded from CI evidence uploads.
 
+Install `tools/requirements-export-validation.txt` with hash verification. Its
+transitive pins preserve the engine lock selections and are QA-only. Direct pins
+are in `tools/requirements-export-validation.in`. Regenerate with uv pip compile
+using `--universal --python-version 3.10 --generate-hashes` and constraints
+exported from the current `uv.lock`; omit the four direct QA pins from those
+constraints so they do not conflict with optional format-reader versions.
+Review the generated diff and run the complete conformance suite before merge.
+
 Direct upstream tool licenses (retain their own distribution notices):
 
 | Tool | Pin | License / source |
 |---|---|---|
 | cjval | 0.10.0, commit in the validation lock | MIT, https://github.com/cityjson/cjval |
 | val3dity | 2.7.0, commit in the validation lock | GPL-3.0-or-later, https://github.com/tudelft3d/val3dity |
-| lxml | 6.0.2 | BSD-3-Clause, https://lxml.de/ |
+| lxml | 6.1.0 | BSD-3-Clause, https://lxml.de/ |
 | pyogrio | 0.11.1 | MIT, https://github.com/geopandas/pyogrio |
 | cjio | 0.9.0 | MIT, https://github.com/cityjson/cjio |
 | trimesh | 4.11.0 | MIT, https://github.com/mikedh/trimesh |
