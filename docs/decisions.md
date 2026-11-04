@@ -408,3 +408,19 @@ property default inherited from the prototype.
   selection is an execution choice. Release documentation must describe that
   behavior consistently and must not claim publication or certification from a
   technical validation pass alone.
+
+## ADR-022 Immutable CI action references
+
+**Status:** Accepted.
+
+- Pin external GitHub Actions to full commit SHAs with release-tag comments,
+  verified against the official upstream repository. Retain existing major
+  versions when replacing floating tags so pinning does not introduce a migration.
+- Refresh pins through review of upstream provenance, release notes and changes;
+  require the full CI matrix before merge and never auto-merge action updates.
+- Use Ubuntu 24.04 explicitly for Linux jobs. The moving ubuntu-latest label
+  migrated to Ubuntu 26.04 and changed benchmark orientation/dimension results;
+  an OS-generation upgrade needs separate scientific equivalence review.
+  Hosted image revisions and package installation still follow existing settings.
+  Scientific code, canonical profile, golden baselines and runtime dependencies
+  remain unchanged. Preserve failed golden JSON diagnostics for investigation.

@@ -2,6 +2,16 @@
 
 All notable public changes to ATAP should be documented here.
 
+## Unreleased
+
+### Security
+
+- pin all CI actions to verified full commit SHAs, retain readable version
+  comments and require reviewed updates against the official upstream repositories;
+- retain generated golden JSON diagnostics when CI regression checks fail;
+- use Ubuntu 24.04 explicitly to prevent a moving runner label from changing
+  the scientific regression environment without review.
+
 ## 0.3.0 - 2026-11-03
 
 ### Building interoperability exports

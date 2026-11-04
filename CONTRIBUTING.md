@@ -78,3 +78,14 @@ AI-assisted development is permitted, but contributors remain responsible for:
 - documentation;
 - validation;
 - final acceptance.
+
+## CI Action Updates
+
+Keep every external `uses:` reference pinned to a full 40-character commit SHA,
+with the corresponding release tag in a comment. Resolve that tag in the official
+upstream repository, verify the commit belongs to that repository and inspect its
+signature, release notes and diff before updating the SHA and comment together.
+Keep major-version upgrades separate from pin refreshes. Submit updates for
+review and require the complete CI matrix to pass before merging; do not
+allow automatic merging of action updates. A valid signature establishes
+provenance, not a guarantee that an action is safe.
