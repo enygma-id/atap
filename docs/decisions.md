@@ -408,3 +408,16 @@ property default inherited from the prototype.
   selection is an execution choice. Release documentation must describe that
   behavior consistently and must not claim publication or certification from a
   technical validation pass alone.
+
+## ADR-022 Immutable CI action references
+
+**Status:** Accepted.
+
+- Pin external GitHub Actions to full commit SHAs with release-tag comments,
+  verified against the official upstream repository. Retain existing major
+  versions when replacing floating tags so pinning does not introduce a migration.
+- Refresh pins through review of upstream provenance, release notes and changes;
+  require the full CI matrix before merge and never auto-merge action updates.
+- This controls action source selection only. Hosted runner images and package
+  installation remain governed by their existing settings; scientific code,
+  canonical profile, outputs and runtime dependencies are unchanged.

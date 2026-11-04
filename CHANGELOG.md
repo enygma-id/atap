@@ -2,6 +2,13 @@
 
 All notable public changes to ATAP should be documented here.
 
+## Unreleased
+
+### Security
+
+- pin all CI actions to verified full commit SHAs, retain readable version
+  comments and require reviewed updates against the official upstream repositories.
+
 ## 0.3.0 - 2026-11-03
 
 ### Building interoperability exports
