@@ -27,6 +27,9 @@
   <a href="https://doi.org/10.5281/zenodo.23909308"><img src="https://zenodo.org/badge/1364039811.svg" alt="ATAP DOI"></a>
     &nbsp;
   <a href="https://github.com/enygma-id/atap/actions/workflows/ci.yml" title="ATAP CI (main branch)"><img src="https://github.com/enygma-id/atap/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status (main)"></a>
+&nbsp;
+<a href="https://scorecard.dev/viewer/?uri=github.com/enygma-id/atap" title="ATAP OpenSSF Security Scorecard"><img src="https://api.scorecard.dev/projects/github.com/enygma-id/atap/badge" alt="OpenSSF Scorecard"></a>
+
 </p>
 
 **Founded and stewarded by Enygma.**  
