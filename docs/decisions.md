@@ -424,3 +424,17 @@ property default inherited from the prototype.
   Hosted image revisions and package installation still follow existing settings.
   Scientific code, canonical profile, golden baselines and runtime dependencies
   remain unchanged. Preserve failed golden JSON diagnostics for investigation.
+
+## ADR-023 Reviewed security maintenance
+
+**Status:** Accepted.
+
+- All main changes use independently approved pull requests, including metadata
+  and integration changes. Maintainers apply versioned branch ruleset templates;
+  template files themselves do not enforce repository settings.
+- Keep the 11 existing core CI names stable. Scorecard is advisory; require CodeQL
+  only after its actual checks exist following advanced-workflow integration.
+- Dependency automation proposes reviewed updates. Scientific behavior, historical
+  goldens and profile 0.6 remain unchanged; failed equivalence blocks an upgrade.
+- Use a single CodeQL setup method, read-only workflow defaults and job-scoped
+  security-event uploads. Checkouts do not retain credentials for later steps.

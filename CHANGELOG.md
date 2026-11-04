@@ -6,6 +6,8 @@ All notable public changes to ATAP should be documented here.
 
 ### Security
 
+- add reviewed branch ruleset templates, code owners and independent review policy;
+
 - pin all CI actions to verified full commit SHAs, retain readable version
   comments and require reviewed updates against the official upstream repositories;
 - retain generated golden JSON diagnostics when CI regression checks fail;
