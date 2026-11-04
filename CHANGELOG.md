@@ -7,7 +7,8 @@ All notable public changes to ATAP should be documented here.
 ### Security
 
 - pin all CI actions to verified full commit SHAs, retain readable version
-  comments and require reviewed updates against the official upstream repositories.
+  comments and require reviewed updates against the official upstream repositories;
+- retain generated golden JSON diagnostics when CI regression checks fail.
 
 ## 0.3.0 - 2026-11-03
 
