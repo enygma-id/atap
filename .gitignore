@@ -43,3 +43,6 @@ dist/
 outputs/
 tmp/
 temp/
+
+# Local JavaScript validation dependencies
+node_modules/

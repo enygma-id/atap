@@ -20,7 +20,12 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python }}
-      - run: python -m pip install -e ".[dev,server]"
+      - run: python -m pip install --require-hashes -r requirements/ci.txt -r requirements/build.txt
+      - name: Install the checked-out project without dependency downloads
+        shell: bash
+        run: |
+          python -m build --wheel --no-isolation --outdir .cache/ci-wheel
+          python -m pip install --no-deps .cache/ci-wheel/*.whl
       - run: ruff check .
       - run: pytest --basetemp "${{ runner.temp }}/atap-pytest"
       - name: Retain golden diagnostics on failure
@@ -41,7 +46,12 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - run: python -m pip install -e ".[dev,server]" "numpy<2"
+      - run: python -m pip install --require-hashes -r requirements/numpy1.txt -r requirements/build.txt
+      - name: Install the checked-out project without dependency downloads
+        shell: bash
+        run: |
+          python -m build --wheel --no-isolation --outdir .cache/ci-wheel
+          python -m pip install --no-deps .cache/ci-wheel/*.whl
       - run: pytest --basetemp "${{ runner.temp }}/atap-pytest"
       - name: Retain golden diagnostics on failure
         if: failure()
@@ -61,7 +71,12 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - run: python -m pip install -e ".[dev,server]"
+      - run: python -m pip install --require-hashes -r requirements/ci.txt -r requirements/build.txt
+      - name: Install the checked-out project without dependency downloads
+        shell: bash
+        run: |
+          python -m build --wheel --no-isolation --outdir .cache/ci-wheel
+          python -m pip install --no-deps .cache/ci-wheel/*.whl
       - run: python -m playwright install --with-deps chromium
       - run: python tools/make_synthetic.py --out .cache/syn
       - name: Test playground against the real server
@@ -89,7 +104,10 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - run: python -m pip install uv
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.7'
+          enable-cache: false
       - run: uv sync --extra dev --locked
       - run: uv run python -c "import atap; print(atap.__version__)"
 
@@ -102,7 +120,10 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - run: python -m pip install uv
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.7'
+          enable-cache: false
       - run: uv sync --extra dev --locked --python 3.12
       - name: Verify release metadata, sample manifests and CFF 1.2.0 schema
         run: uv run python tools/check_release_readiness.py --out .cache/release-readiness
@@ -111,7 +132,9 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-metadata-${{ github.sha }}
-          path: .cache/release-readiness/
+          path: |
+            .cache/release-readiness/
+            !.cache/release-readiness/cff-env/**
           if-no-files-found: error
 
   export-conformance:
@@ -128,18 +151,25 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '20'
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.7'
+          enable-cache: false
       - name: Create evidence directory
         run: mkdir -p .cache/release-evidence/setup
       - name: Install pinned QA dependencies outside the engine dependency set
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install uv build==1.3.0
+          python -m pip install --require-hashes -r requirements/build.txt
           uv sync --extra dev --locked --python 3.12
-          uv pip install --python .venv/bin/python -r tools/requirements-export-validation.txt
+          uv pip install --python .venv/bin/python --require-hashes -r tools/requirements-export-validation.txt
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends cmake g++ libcgal-dev libeigen3-dev libboost-filesystem-dev libgeos++-dev libssl-dev libxml2-utils
           rustup toolchain install 1.90.0 --profile minimal
+      - name: Install integrity-locked GLB validator
+        working-directory: tools/gltf-validator
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Build official pinned validators
         shell: bash
         run: |
@@ -149,15 +179,14 @@ jobs:
           test "$(git -C .cache/val3dity-source rev-parse HEAD)" = fbe9e4d65376e1c3f63401f15967485783f78c0a
           cmake -S .cache/val3dity-source -B .cache/val3dity-build -DCMAKE_BUILD_TYPE=Release 2>&1 | tee .cache/release-evidence/setup/val3dity-configure.log
           cmake --build .cache/val3dity-build --parallel 2 2>&1 | tee .cache/release-evidence/setup/val3dity-build.log
-          npm install --prefix .cache/gltf-validator --ignore-scripts --no-audit --no-fund gltf-validator@2.0.0-dev.3.10
-          sha256sum "$(command -v cjval)" .cache/val3dity-build/val3dity .cache/gltf-validator/package-lock.json > .cache/release-evidence/setup/tool-hashes.txt
+          sha256sum "$(command -v cjval)" .cache/val3dity-build/val3dity tools/gltf-validator/package-lock.json > .cache/release-evidence/setup/tool-hashes.txt
       - name: Prepare complete hash-verified schemas and generate actual outputs
         run: |
           .venv/bin/python tools/prepare_export_validation.py --cache .cache/export-validation-schemas
           .venv/bin/python tools/make_export_fixtures.py --out .cache/release-evidence/fixtures
       - name: Validate standards, independent readers, real solids and final hashes
         run: |
-          .venv/bin/python tools/validate_exports.py --fixtures .cache/release-evidence/fixtures --out .cache/release-evidence/conformance --schema-cache .cache/export-validation-schemas --cjval /home/runner/.cargo/bin/cjval --val3dity .cache/val3dity-build/val3dity --gltf-module "${{ github.workspace }}/.cache/gltf-validator/node_modules/gltf-validator"
+          .venv/bin/python tools/validate_exports.py --fixtures .cache/release-evidence/fixtures --out .cache/release-evidence/conformance --schema-cache .cache/export-validation-schemas --cjval /home/runner/.cargo/bin/cjval --val3dity .cache/val3dity-build/val3dity --gltf-module "${{ github.workspace }}/tools/gltf-validator/node_modules/gltf-validator"
       - name: Prove negative cases fail and missing validators never pass
         env:
           ATAP_CONFORMANCE: '1'
@@ -168,7 +197,7 @@ jobs:
         run: .venv/bin/python -m pytest tests/test_external_export_validation.py -q --junitxml=.cache/release-evidence/external-tests.xml
       - name: Build distributions and verify a fresh wheel install
         run: |
-          python -m build --outdir .cache/release-evidence/dist
+          uv build --python "$(command -v python)" --no-build-isolation --out-dir .cache/release-evidence/dist
           .venv/bin/python tools/smoke_export_distribution.py --dist .cache/release-evidence/dist --sample .cache/release-evidence/fixtures/simple/result.geojson --out .cache/release-evidence/distribution
       - name: Retain immutable validation evidence even on failure
         if: always()
