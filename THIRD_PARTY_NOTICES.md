@@ -49,3 +49,13 @@ License texts/notices captured from a reference runtime are preserved under
 Before an official release, maintainers should reconcile this inventory against
 the exact package manifests, lockfiles, wheels, native binaries, containers,
 and release artifacts being distributed.
+
+## Security maintenance provenance
+
+- lxml 6.1.0 (BSD-3-Clause) is an existing optional export-validation tool;
+  its upstream license notices are retained in `third-party/lxml/LICENSES.txt`.
+- certifi 2026.10.23 (MPL-2.0) remains a transitive dependency; its upstream
+  license is retained in `third-party/certifi/LICENSE`.
+- Source archive hashes and license provenance are recorded in the manifest.
+  These upgrades introduce no new ATAP engine dependency. Upstream distributions
+  retain their own native/transitive library notices.

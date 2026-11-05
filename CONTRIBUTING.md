@@ -89,3 +89,18 @@ Keep major-version upgrades separate from pin refreshes. Submit updates for
 review and require the complete CI matrix to pass before merging; do not
 allow automatic merging of action updates. A valid signature establishes
 provenance, not a guarantee that an action is safe.
+
+## Required Review
+
+All changes, including documentation, release metadata and `develop` to `main`
+integration, must use a pull request approved by another maintainer. Do not push
+directly to `main`. Code owners review changes, stale approvals are dismissed,
+and the latest push needs independent approval before merge. Resolve review
+conversations and pass the required up-to-date CI checks. Repository administrators
+apply the reviewed [ruleset templates](docs/security/rulesets/README.md).
+
+Dependabot updates require human approval as well. Updates to scientific
+libraries such as NumPy, SciPy, Rasterio, Shapely and pyproj must pass the full
+golden regression suite without changing geometry, hierarchy, vertical values,
+profile or defaults. Stop and investigate any changed output; do not relax the
+golden checks to accept a dependency update.

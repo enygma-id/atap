@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Direct optional CI/QA tools; compile hashes for the complete dependency graph.
+lxml==6.1.0
+pyogrio==0.11.1
+cjio==0.9.0
+trimesh==4.11.0
