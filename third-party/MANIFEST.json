@@ -52,7 +52,8 @@
     "cffconvert/LICENSE",
     "lxml/LICENSES.txt",
     "certifi/LICENSE",
-    "setup-uv/LICENSE"
+    "setup-uv/LICENSE",
+    "opentelemetry-api/LICENSE"
   ],
   "release_validation_tools": {
     "cffconvert": {
@@ -88,6 +89,16 @@
       "license": "MIT",
       "source": "https://github.com/astral-sh/setup-uv",
       "usage": "CI bootstrap only; uv 0.13.7, not a runtime dependency"
+    }
+  },
+  "dependency_update_sources": {
+    "opentelemetry-api": {
+      "version": "1.45.2",
+      "source": "https://files.pythonhosted.org/packages/a9/2d/610db864d7513158cebb8f36cc88e67e73bd6c7aa1905ef18d89e1281c81/opentelemetry_api-1.45.2-py3-none-any.whl",
+      "source_sha256": "2cbd737377e710ee740d261c94e93fa0f08e6d037c18f17513cc0a2d94479a34",
+      "license": "Apache-2.0",
+      "license_file": "opentelemetry-api/LICENSE",
+      "usage": "Apache-2.0 transitive dependency of the optional FastAPI server; no direct engine import"
     }
   }
 }

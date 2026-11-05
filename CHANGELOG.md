@@ -6,6 +6,11 @@ All notable public changes to ATAP should be documented here.
 
 ### Security
 
+- resolve Python dependency updates through the universal uv lock, regenerate
+  complete hash-verified CI/build/runtime graphs, and verify lock exports in CI;
+  keep Python 3.10 compatibility and route generated requirements updates through
+  the documented regeneration process instead of independent pip updates;
+
 - verify complete Python CI/build/CFF/wheel dependency graphs with hashes, pin
   uv bootstrap and use npm integrity locks for the GLB validator;
 

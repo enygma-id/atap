@@ -450,3 +450,20 @@ property default inherited from the prototype.
   with npm ci from an exact version/integrity lock. Preserve all existing CI names.
 - Prove scientific equivalence and independent conformance before updating pins;
   require human review of dependency automation. No scientific baseline changes.
+
+## ADR-025 Synchronize dependency update graphs
+
+**Status:** Accepted.
+
+- Resolve application and development updates in the universal `uv.lock`, keeping
+  Python 3.10 supported through version markers. Regenerate all CI, runtime,
+  NumPy 1, build and CFF requirements together; shared packages must agree.
+- Do not ask the pip updater to modify generated `requirements/*.txt` exports
+  independently. Retain uv updates for the application and pip updates for the
+  separate export-validation tools, plus Actions and npm updates.
+- Check CI/runtime exports against the lock in every existing uv-workflow job.
+  A uv update requires regenerated exports before review. Keep every existing
+  job name, least-privilege permission and full action SHA unchanged.
+- Dependency upgrades must preserve all scientific output and pass independent
+  export conformance. Do not force incompatible transitive major versions or
+  weaken hashes, Python compatibility or golden checks to accept an update.

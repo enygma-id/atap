@@ -110,6 +110,8 @@ jobs:
           enable-cache: false
       - run: uv sync --extra dev --locked
       - run: uv run python -c "import atap; print(atap.__version__)"
+      - name: Verify generated requirements match the universal lock
+        run: uv run python tools/export_ci_requirements.py --check-exports
 
   release-metadata:
     runs-on: ubuntu-24.04

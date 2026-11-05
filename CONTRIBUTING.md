@@ -104,3 +104,30 @@ libraries such as NumPy, SciPy, Rasterio, Shapely and pyproj must pass the full
 golden regression suite without changing geometry, hierarchy, vertical values,
 profile or defaults. Stop and investigate any changed output; do not relax the
 golden checks to accept a dependency update.
+
+### Updating Python dependencies
+
+Treat `uv.lock` as the source for application/development dependencies. The
+`requirements/ci.txt` and `requirements/runtime.txt` files are generated exports;
+the NumPy 1, build and CFF graphs are generated from that lock and the checked-in
+`requirements/*.in` inputs. Do not upgrade individual transitive pins in these
+outputs. Dependabot proposes application updates through the uv ecosystem;
+the separate pip entry covers the standalone export-validation tools only.
+
+Start from current `main`, review the proposed versions and licenses, then run:
+
+```sh
+uv lock --upgrade-package PACKAGE
+uv run python tools/export_ci_requirements.py
+uv run python tools/export_ci_requirements.py --check-exports
+uv run ruff check .
+uv run pytest
+```
+
+For a Dependabot uv pull request, regenerate all five requirements files on its
+branch before requesting review. Change build/CFF input pins in their `.in`
+files, then run the same generator. The universal lock retains separate versions
+when newer releases do not support Python 3.10. Keep supported Python versions
+and all dependency graphs compatible; include complete transitive hashes and
+new dependency license notices. Verify the full CI matrix, NumPy 1, golden
+equivalence and independent export conformance before merge.

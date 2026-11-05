@@ -16,13 +16,8 @@ updates:
     groups:
       actions:
         patterns: ["*"]
-  - package-ecosystem: "pip"
-    directory: "/requirements"
-    schedule:
-      interval: "weekly"
-    groups:
-      python-ci:
-        update-types: ["minor", "patch"]
+  # requirements/*.txt are generated together from uv.lock and QA inputs.
+  # Updating those exports independently can create incompatible dependency graphs.
   - package-ecosystem: "pip"
     directory: "/tools"
     schedule:
