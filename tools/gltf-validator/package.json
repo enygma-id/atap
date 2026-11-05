@@ -1,0 +1,9 @@
+{
+  "name": "atap-gltf-validation",
+  "private": true,
+  "version": "0.0.0",
+  "license": "AGPL-3.0-only",
+  "dependencies": {
+    "gltf-validator": "2.0.0-dev.3.10"
+  }
+}

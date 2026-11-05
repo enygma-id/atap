@@ -42,7 +42,9 @@ def main():
             report['steps'].append({'command':list(map(str,command)),'exit_code':child.returncode})
             if child.returncode:
                 raise RuntimeError(child.stderr.decode(errors='replace')[-1200:])
-        run('install',[python,'-m','pip','install',str(wheel[0].resolve())+'[server]'])
+        requirements = Path(__file__).resolve().parents[1] / 'requirements/runtime.txt'
+        run('dependencies',[python,'-m','pip','install','--require-hashes','-r',requirements])
+        run('install',[python,'-m','pip','install','--no-deps',str(wheel[0].resolve())])
         sample = args.out/'sample.geojson'
         sample.write_bytes(args.sample.read_bytes())
         before = hashlib.sha256(sample.read_bytes()).hexdigest()

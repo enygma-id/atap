@@ -6,6 +6,9 @@ All notable public changes to ATAP should be documented here.
 
 ### Security
 
+- verify complete Python CI/build/CFF/wheel dependency graphs with hashes, pin
+  uv bootstrap and use npm integrity locks for the GLB validator;
+
 - upgrade QA lxml to 6.1.0 and transitive certifi to 2026.10.23 with verified
   requirements hashes, preserving canonical output and regression baselines;
 

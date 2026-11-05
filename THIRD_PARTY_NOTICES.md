@@ -59,3 +59,9 @@ and release artifacts being distributed.
 - Source archive hashes and license provenance are recorded in the manifest.
   These upgrades introduce no new ATAP engine dependency. Upstream distributions
   retain their own native/transitive library notices.
+
+## CI bootstrap
+
+- astral-sh/setup-uv v10.3.3 (MIT), pinned commit in the CI workflow, installs
+  uv 0.13.7 for CI only. Its license is retained in third-party/setup-uv/LICENSE.
+  uv is MIT/Apache-2.0 and is neither bundled with nor required by the ATAP engine.
