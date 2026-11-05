@@ -51,7 +51,11 @@
     "shapely/LICENSE_GEOS",
     "cffconvert/LICENSE",
     "lxml/LICENSES.txt",
-    "certifi/LICENSE"
+    "certifi/LICENSE",
+    "atheris/LICENSE",
+    "hypothesis/LICENSE.txt",
+    "setup-uv/LICENSE",
+    "sortedcontainers/LICENSE"
   ],
   "release_validation_tools": {
     "cffconvert": {
@@ -78,6 +82,40 @@
       "license": "MPL-2.0",
       "license_file": "certifi/LICENSE",
       "usage": "existing QA/transitive dependency; no new engine dependency"
+    }
+  },
+  "test_tools": {
+    "atheris": {
+      "version": "3.1.0",
+      "artifact": "https://files.pythonhosted.org/packages/0a/88/fd6ad595dafa9c7ce56dbfcaff0c7244988dac3af86c771166c6516ccf6b/atheris-3.1.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "artifact_sha256": "ec5e11f21a4c197fe91f7aea2b2de88e623c73a21fc07b105ac6329a1588457b",
+      "license": "Apache-2.0",
+      "usage": "test/fuzz only, not an engine dependency"
+    },
+    "hypothesis": {
+      "version": "6.170.14",
+      "artifact": "https://files.pythonhosted.org/packages/d6/0f/10b2076a1314c554eee58c26e1dbe630fd26a32773df2a63bd5dba5d9947/hypothesis-6.170.14.tar.gz",
+      "artifact_sha256": "8272913eb34c4399a88cf8a9ecdb351c9ef8f621c061f2ac323362d4a66b755d",
+      "license": "MPL-2.0",
+      "usage": "test/fuzz only, not an engine dependency",
+      "python_3_10": {
+        "version": "6.168.5",
+        "source": "https://files.pythonhosted.org/packages/93/a8/bd70d7c2966e561228b9fdc075ee77c0ba577dcbbfbf921edf614db14f6a/hypothesis-6.168.5.tar.gz",
+        "source_sha256": "76b9226962fe11d40858253a967eda95bb65811365286317e0118f4ec8f808c7"
+      }
+    },
+    "setup-uv": {
+      "version": "v10.3.3",
+      "commit": "68559e99cc807c1eb7e9238fd43a15bba460eec2",
+      "license": "MIT",
+      "usage": "optional fuzz workflow bootstrap; uv 0.13.7"
+    },
+    "sortedcontainers": {
+      "version": "2.4.0",
+      "source": "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz",
+      "source_sha256": "25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88",
+      "license": "Apache-2.0",
+      "usage": "Hypothesis transitive test dependency"
     }
   }
 }

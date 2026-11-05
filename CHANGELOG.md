@@ -6,6 +6,9 @@ All notable public changes to ATAP should be documented here.
 
 ### Security
 
+- add bounded native Atheris campaigns for footprint IDs, canonical schema and
+  saved-result exports, plus generated geometry and hierarchy regression checks;
+
 - upgrade QA lxml to 6.1.0 and transitive certifi to 2026.10.23 with verified
   requirements hashes, preserving canonical output and regression baselines;
 

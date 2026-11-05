@@ -59,3 +59,13 @@ and release artifacts being distributed.
 - Source archive hashes and license provenance are recorded in the manifest.
   These upgrades introduce no new ATAP engine dependency. Upstream distributions
   retain their own native/transitive library notices.
+
+## Generated tests and native fuzzing
+
+- Atheris 3.1.0 (Apache-2.0) is optional Linux x86-64/Python 3.12+ fuzz tooling;
+  upstream native/runtime distributions retain their own notices.
+- Hypothesis (MPL-2.0) is test-only; the lock selects 6.168.5 on Python 3.10 and
+  6.170.14 on newer Python. sortedcontainers 2.4.0 (Apache-2.0) is transitive.
+- setup-uv v10.3.3 (MIT) bootstraps uv 0.13.7 in the optional fuzz workflow only.
+  Artifact hashes/commits and original license copies are under third-party/.
+  These tools add no dependency to the default ATAP engine installation.

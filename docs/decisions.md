@@ -438,3 +438,15 @@ property default inherited from the prototype.
   goldens and profile 0.6 remain unchanged; failed equivalence blocks an upgrade.
 - Use a single CodeQL setup method, read-only workflow defaults and job-scoped
   security-event uploads. Checkouts do not retain credentials for later steps.
+
+## ADR-024 Bounded native fuzzing
+
+**Status:** Accepted.
+
+- Keep native Atheris in an optional Linux x86-64/Python 3.12+ extra; run three real
+  coverage-guided campaigns weekly or on dispatch with synthetic seeds.
+- Property-based tests run in the ordinary development suite on supported OSes.
+  Unexpected exceptions/crashes/timeouts are findings; do not silently fix or
+  suppress them in a fuzzing maintenance PR. Security findings stay private.
+- Fuzz coverage is bounded and explicitly scoped; it is not a security guarantee.
+  No production algorithm, canonical profile, parameter or golden is changed.
