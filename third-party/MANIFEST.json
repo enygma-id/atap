@@ -51,7 +51,8 @@
     "shapely/LICENSE_GEOS",
     "cffconvert/LICENSE",
     "lxml/LICENSES.txt",
-    "certifi/LICENSE"
+    "certifi/LICENSE",
+    "setup-uv/LICENSE"
   ],
   "release_validation_tools": {
     "cffconvert": {
@@ -78,6 +79,15 @@
       "license": "MPL-2.0",
       "license_file": "certifi/LICENSE",
       "usage": "existing QA/transitive dependency; no new engine dependency"
+    }
+  },
+  "ci_actions": {
+    "astral-sh/setup-uv": {
+      "version": "v10.3.3",
+      "commit": "68559e99cc807c1eb7e9238fd43a15bba460eec2",
+      "license": "MIT",
+      "source": "https://github.com/astral-sh/setup-uv",
+      "usage": "CI bootstrap only; uv 0.13.7, not a runtime dependency"
     }
   }
 }

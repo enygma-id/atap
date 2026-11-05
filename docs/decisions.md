@@ -438,3 +438,15 @@ property default inherited from the prototype.
   goldens and profile 0.6 remain unchanged; failed equivalence blocks an upgrade.
 - Use a single CodeQL setup method, read-only workflow defaults and job-scoped
   security-event uploads. Checkouts do not retain credentials for later steps.
+
+## ADR-024 Hash-verified CI installation
+
+**Status:** Accepted.
+
+- Install complete hashed Python graphs before installing local checked-out code
+  without dependency resolution/build isolation. Keep the engine lock unchanged;
+  retain separate NumPy 1 and isolated CFF environments.
+- Pin setup-uv and the uv version independently; install the Khronos validator
+  with npm ci from an exact version/integrity lock. Preserve all existing CI names.
+- Prove scientific equivalence and independent conformance before updating pins;
+  require human review of dependency automation. No scientific baseline changes.

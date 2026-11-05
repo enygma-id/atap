@@ -51,7 +51,13 @@ def main():
         report['python'] = sys.version
         report['installed_version'] = importlib.metadata.version('atap')
         report['uv'] = run('uv-version', [args.uv, '--version'])
-        cff = [args.uv, 'tool', 'run', '--isolated', '--from', 'cffconvert==2.0.0', 'cffconvert']
+        cff_env = (args.out / 'cff-env').resolve()
+        if not cff_env.exists():
+            run('cff-environment', [args.uv, 'venv', cff_env, '--python', sys.executable])
+        cff_python = cff_env / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
+        run('cff-install', [args.uv, 'pip', 'install', '--python', cff_python,
+                            '--require-hashes', '-r', 'requirements/cff.txt'])
+        cff = [str(cff_env / ('Scripts/cffconvert.exe' if os.name == 'nt' else 'bin/cffconvert'))]
         report['cffconvert'] = run('cff-version', [*cff, '--version'])
         if '2.0.0' not in report['cffconvert']:
             raise ValueError('Unexpected CFF validator version')

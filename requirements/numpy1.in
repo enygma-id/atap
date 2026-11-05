@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+numpy==1.26.4
+scipy==1.17.1
+rasterio==1.4.4
