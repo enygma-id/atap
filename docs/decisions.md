@@ -467,3 +467,19 @@ property default inherited from the prototype.
 - Dependency upgrades must preserve all scientific output and pass independent
   export conformance. Do not force incompatible transitive major versions or
   weaken hashes, Python compatibility or golden checks to accept an update.
+
+## ADR-026 Restore bounded native fuzz coverage
+
+**Status:** Accepted.
+
+- Keep Atheris optional on Linux x86-64/Python 3.12+; exercise real footprint-ID,
+  profile-schema and export entry points with reviewed synthetic seeds.
+- Run each fixed seed corpus on pushes and pull requests, and retain 300-second
+  coverage-guided weekly/dispatch campaigns. Seed checks prove installation and
+  execution only; they do not prove that mutations or all inputs are bug-free.
+- Run Hypothesis volume/ground-placement and hierarchy/vertical invariants in
+  ordinary development tests. Regenerate every hashed graph after lock changes;
+  ensure Python 3.10 and NumPy 1 environments receive their test dependencies.
+- Preserve unexpected exceptions as findings. Report possible security findings
+  privately; do not silently suppress them or modify production algorithms,
+  canonical profile, parameters or historical goldens in a fuzzing maintenance PR.

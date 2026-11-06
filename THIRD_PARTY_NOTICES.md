@@ -70,6 +70,12 @@ and release artifacts being distributed.
 
 ## CI bootstrap
 
+- Atheris 3.1.0 (Apache-2.0) is an optional Linux native fuzzing tool.
+  Hypothesis (MPL-2.0) and sortedcontainers 2.4.0 (Apache-2.0) support generated
+  development tests. These licenses are compatible with AGPL-3.0-only. License
+  copies and verified distribution provenance are recorded in `third-party/`.
+  None is an ATAP production dependency.
+
 - astral-sh/setup-uv v10.3.3 (MIT), pinned commit in the CI workflow, installs
   uv 0.13.7 for CI only. Its license is retained in third-party/setup-uv/LICENSE.
   uv is MIT/Apache-2.0 and is neither bundled with nor required by the ATAP engine.

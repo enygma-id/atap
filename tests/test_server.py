@@ -142,13 +142,15 @@ def test_parameter_type_and_range_validation(params: str, message: str):
     assert message in str(caught.value.detail)
 
 
-def test_fifo_queued_and_running_cancellation(tmp_path: Path):
+@pytest.mark.parametrize("startup_delay", [0, 6])
+def test_fifo_queued_and_running_cancellation(tmp_path: Path, startup_delay: int):
     config = ServerConfig(
         work_dir=tmp_path, max_concurrent=1, grace_seconds=0.1
     )
     def tree_command(job):
         sleeping = (
         "import pathlib,subprocess,sys,time;"
+        f"time.sleep({startup_delay});"
         "child=subprocess.Popen([sys.executable,'-c','import time;time.sleep(60)']);"
         f"pathlib.Path({str(job.directory / 'child.pid')!r}).write_text(str(child.pid));"
         "print('{\"type\":\"progress\",\"current\":0,"
@@ -162,25 +164,34 @@ def test_fifo_queued_and_running_cancellation(tmp_path: Path):
     second_dir = tmp_path / str(__import__("uuid").uuid4())
     first_dir.mkdir()
     second_dir.mkdir()
-    first = manager.submit(first_dir, 1)
-    second = manager.submit(second_dir, 1)
-    assert _wait(manager, first.job_id, {"running"}) == "running"
-    pid_file = first_dir / "child.pid"
-    deadline = time.time() + 5
-    while not pid_file.exists() and time.time() < deadline:
-        time.sleep(0.05)
-    child_pid = int(pid_file.read_text())
-    assert manager.snapshot(second)["queue_position"] == 1
-    manager.cancel(second)
-    assert second.status == "cancelled"
-    manager.cancel(first)
-    assert _wait(manager, first.job_id, {"cancelled"}, timeout=5) == "cancelled"
-    assert not manager.running
-    deadline = time.time() + 5
-    while _pid_alive(child_pid) and time.time() < deadline:
-        time.sleep(0.05)
-    assert not _pid_alive(child_pid)
-    manager.close()
+    try:
+        first = manager.submit(first_dir, 1)
+        second = manager.submit(second_dir, 1)
+        assert _wait(manager, first.job_id, {"running"}) == "running"
+        # Running includes subprocess startup. The progress event is emitted only
+        # after the child PID file has been fully written and closed.
+        deadline = time.monotonic() + 30
+        while not first.progress and time.monotonic() < deadline:
+            assert first.status == "running", first.error
+            time.sleep(0.05)
+        log = first_dir / "run.log"
+        assert first.progress and first.progress["message"] == "waiting", (
+            log.read_text(encoding="utf-8") if log.exists() else first.error
+        )
+        child_pid = int((first_dir / "child.pid").read_text(encoding="utf-8"))
+        assert _pid_alive(child_pid)
+        assert manager.snapshot(second)["queue_position"] == 1
+        manager.cancel(second)
+        assert second.status == "cancelled"
+        manager.cancel(first)
+        assert _wait(manager, first.job_id, {"cancelled"}, timeout=5) == "cancelled"
+        assert not manager.running
+        deadline = time.time() + 5
+        while _pid_alive(child_pid) and time.time() < deadline:
+            time.sleep(0.05)
+        assert not _pid_alive(child_pid)
+    finally:
+        manager.close()
 
 
 def test_startup_ttl_cleanup_only_removes_uuid_directories(tmp_path: Path):

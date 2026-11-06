@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Native fuzzing
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '41 3 * * 3'
+permissions:
+  contents: read
+jobs:
+  smoke:
+    name: Fuzz seeds (${{ matrix.target }})
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [footprint_ids, profile, export]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.7'
+          enable-cache: false
+      - name: Install locked native fuzzing environment
+        run: uv sync --locked --extra dev --extra fuzz --python 3.12
+      - name: Execute every reviewed synthetic seed without mutations
+        env:
+          FUZZ_TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          mkdir -p .cache/fuzz/corpus .cache/fuzz/artifacts
+          cp -R "fuzz/corpus/${FUZZ_TARGET}" ".cache/fuzz/corpus/${FUZZ_TARGET}"
+          uv run --no-sync python "fuzz/fuzz_${FUZZ_TARGET}.py" ".cache/fuzz/corpus/${FUZZ_TARGET}" -runs=0 -max_len=16384 -timeout=10 -rss_limit_mb=2048 -artifact_prefix=.cache/fuzz/artifacts/
+  fuzz:
+    name: Fuzz (${{ matrix.target }})
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [footprint_ids, profile, export]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.7'
+          enable-cache: false
+      - name: Install locked native fuzzing environment
+        run: uv sync --locked --extra dev --extra fuzz --python 3.12
+      - name: Run bounded coverage-guided campaign
+        env:
+          FUZZ_TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          mkdir -p .cache/fuzz/artifacts .cache/fuzz/corpus
+          cp -R "fuzz/corpus/${FUZZ_TARGET}" ".cache/fuzz/corpus/${FUZZ_TARGET}"
+          uv run --no-sync python "fuzz/fuzz_${FUZZ_TARGET}.py" ".cache/fuzz/corpus/${FUZZ_TARGET}" -max_total_time=300 -max_len=16384 -timeout=10 -rss_limit_mb=2048 -artifact_prefix=.cache/fuzz/artifacts/
+      - name: Retain crash diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-failure-${{ matrix.target }}-${{ github.sha }}
+          path: .cache/fuzz/artifacts/
+          if-no-files-found: warn
