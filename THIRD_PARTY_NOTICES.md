@@ -70,6 +70,12 @@ and release artifacts being distributed.
 
 ## CI bootstrap
 
+- actions/attest v4.2.2 and actions/download-artifact v8.0.2 (MIT) support
+  release provenance and workflow artifact transfer. Their full upstream commit
+  SHAs and license-file hashes are recorded in the manifest; upstream MIT notices
+  are retained under `third-party/github-attest/` and
+  `third-party/github-download-artifact/`. Neither is a runtime dependency.
+
 - Atheris 3.1.0 (Apache-2.0) is an optional Linux native fuzzing tool.
   Hypothesis (MPL-2.0) and sortedcontainers 2.4.0 (Apache-2.0) support generated
   development tests. These licenses are compatible with AGPL-3.0-only. License

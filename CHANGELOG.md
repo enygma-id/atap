@@ -6,6 +6,10 @@ All notable public changes to ATAP should be documented here.
 
 ### Security
 
+- prepare a hash-pinned release build and GitHub Artifact Attestations workflow,
+  verified SLSA provenance bundles, source manifests and non-overwriting historical
+  rebuilds; add read-only historical build checks without publishing releases;
+
 - add native Atheris ID/schema/export fuzzing with reviewed synthetic seeds and
   generated volume/hierarchy tests; install test dependencies in the complete
   hashed CI and NumPy 1 graphs and check seed execution before merge; prepare
