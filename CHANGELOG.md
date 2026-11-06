@@ -6,6 +6,9 @@ All notable public changes to ATAP should be documented here.
 
 ### Security
 
+- document evidence and remaining maintainer checks for all 67 OpenSSF Best
+  Practices Passing criteria, without claiming registration or a badge;
+
 - prepare a hash-pinned release build and GitHub Artifact Attestations workflow,
   verified SLSA provenance bundles, source manifests and non-overwriting historical
   rebuilds; add read-only historical build checks without publishing releases;
