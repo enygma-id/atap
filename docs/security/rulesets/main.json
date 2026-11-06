@@ -65,6 +65,24 @@
           },
           {
             "context": "uv-workflow (windows-latest)"
+          },
+          {
+            "context": "CodeQL (actions)"
+          },
+          {
+            "context": "CodeQL (javascript-typescript)"
+          },
+          {
+            "context": "CodeQL (python)"
+          },
+          {
+            "context": "Fuzz seeds (footprint_ids)"
+          },
+          {
+            "context": "Fuzz seeds (profile)"
+          },
+          {
+            "context": "Fuzz seeds (export)"
           }
         ]
       }

@@ -6,6 +6,13 @@ All notable public changes to ATAP should be documented here.
 
 ### Security
 
+- add native Atheris ID/schema/export fuzzing with reviewed synthetic seeds and
+  generated volume/hierarchy tests; install test dependencies in the complete
+  hashed CI and NumPy 1 graphs and check seed execution before merge; prepare
+  reviewed required-check templates for the existing CodeQL and new seed checks;
+- wait for subprocess readiness in the cancellation integration test and always
+  clean up its jobs, keeping cancellation deadlines and process-tree assertions;
+
 - resolve Python dependency updates through the universal uv lock, regenerate
   complete hash-verified CI/build/runtime graphs, and verify lock exports in CI;
   keep Python 3.10 compatibility and route generated requirements updates through
