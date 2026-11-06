@@ -6,6 +6,9 @@ All notable public changes to ATAP should be documented here.
 
 ### Security
 
+- document evidence and remaining maintainer checks for all 67 OpenSSF Best
+  Practices Passing criteria, without claiming registration or a badge;
+
 - add native Atheris ID/schema/export fuzzing with reviewed synthetic seeds and
   generated volume/hierarchy tests; install test dependencies in the complete
   hashed CI and NumPy 1 graphs and check seed execution before merge; prepare

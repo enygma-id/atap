@@ -483,3 +483,15 @@ property default inherited from the prototype.
 - Preserve unexpected exceptions as findings. Report possible security findings
   privately; do not silently suppress them or modify production algorithms,
   canonical profile, parameters or historical goldens in a fuzzing maintenance PR.
+
+## ADR-028 Honest Best Practices evidence
+
+**Status:** Accepted.
+
+- Map every current Passing criterion to concrete evidence, a gap or an explicit
+  N/A candidate. Policies and configured tools do not prove historical response
+  performance, personal expertise, complete coverage or absence of defects.
+- Keep private security reports private; require human confirmation of account
+  settings, response history, findings and deployment-dependent cryptography.
+- Registration remains a maintainer decision. Do not publish a badge or claim
+  certification until an actual application exists and the criteria are met.
