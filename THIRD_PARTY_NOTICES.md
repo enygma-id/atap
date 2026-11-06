@@ -60,6 +60,14 @@ and release artifacts being distributed.
   These upgrades introduce no new ATAP engine dependency. Upstream distributions
   retain their own native/transitive library notices.
 
+## Optional server dependency updates
+
+- opentelemetry-api 1.45.2 (Apache-2.0) is a transitive requirement of FastAPI
+  0.162.0 in the optional server/development extras. The license is compatible
+  with AGPL-3.0-only and retained in `third-party/opentelemetry-api/LICENSE`.
+  The verified upstream wheel URL and SHA-256 are recorded in the manifest.
+  ATAP's scientific engine does not import this package directly.
+
 ## CI bootstrap
 
 - astral-sh/setup-uv v10.3.3 (MIT), pinned commit in the CI workflow, installs
