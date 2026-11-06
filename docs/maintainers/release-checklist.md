@@ -55,9 +55,18 @@ ATAP v0.3.0 is recorded in `CHANGELOG.md` and `release-notes-0.3.0.md`.
       separately reviewed `.zenodo.json` is added; Zenodo gives that file precedence;
 - [ ] re-freeze the SHA and repeat affected checks/CI after any date/version/
       publication metadata change; keep publication NO-GO until human approval;
-- [ ] create tag and publish artifacts only after maintainer approval.
+- [ ] after maintainer approval, follow the
+      [provenance workflow guide](../security/verifying-releases.md) to create
+      the reviewed tag and draft release; the workflow does not create either;
+- [ ] verify the genuine SLSA bundle for every subject and its attested source
+      manifest, including the selected source commit and workflow-event identity;
+- [ ] keep the release draft until all signed artifacts are verified, so the
+      publication/Zenodo snapshot includes the final provenance and distributions;
+- [ ] preserve historical tags/assets when backfilling provenance; use unique
+      rebuild bundles and append factual rebuild notes instead of overwriting.
 
-After explicit publication approval, publish the stable GitHub Release (a tag
+After explicit publication approval and signed-artifact verification, publish
+the stable GitHub Release (a tag
 alone does not establish successful Zenodo ingestion), inspect the actual
 Zenodo record/errors, and verify its version, creators, license and archived
 release association. Add DOI links only after the record exists: version DOI
