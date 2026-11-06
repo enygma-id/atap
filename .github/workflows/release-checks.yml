@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Release build checks
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+permissions:
+  contents: read
+jobs:
+  build-check:
+    name: Release build check (${{ matrix.tag }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: [v0.2.0, v0.3.0]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Prepare a read-only historical build rehearsal
+        id: source
+        env:
+          RELEASE_TAG: ${{ matrix.tag }}
+        run: python tools/release_artifacts.py prepare --tag "$RELEASE_TAG" --rebuild --rehearsal --out "$RUNNER_TEMP/context.json" --github-output "$GITHUB_OUTPUT"
+      - name: Check the hosted signature verifier version
+        run: python tools/release_artifacts.py verifier
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.source.outputs.source_sha }}
+          path: .cache/release-source
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.7'
+          enable-cache: false
+      - name: Build and verify the real historical wheel and sdist
+        shell: bash
+        run: |
+          uv venv "$RUNNER_TEMP/build-env" --python 3.12
+          uv pip install --python "$RUNNER_TEMP/build-env/bin/python" --require-hashes -r requirements/build.txt
+          uv build .cache/release-source --python "$RUNNER_TEMP/build-env/bin/python" --no-build-isolation --out-dir .cache/release-checks/dist
+          python tools/release_artifacts.py package --dist .cache/release-checks/dist --out .cache/release-checks/assets --context "$RUNNER_TEMP/context.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-rehearsal-${{ matrix.tag }}
+          path: .cache/release-checks/assets/
+          if-no-files-found: error

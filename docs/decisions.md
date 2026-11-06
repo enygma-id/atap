@@ -484,6 +484,30 @@ property default inherited from the prototype.
   privately; do not silently suppress them or modify production algorithms,
   canonical profile, parameters or historical goldens in a fuzzing maintenance PR.
 
+## ADR-027 Verified release provenance and preserved historical assets
+
+**Status:** Accepted.
+
+- Use maintained GitHub Artifact Attestations with the full-SHA-pinned
+  `actions/attest` action, instead of the retired SLSA GitHub generator. Generate
+  genuine signed SLSA v1 provenance and retain its Sigstore bundle as one JSON
+  record in an `.intoto.jsonl` file supported by the GitHub CLI verifier.
+- Separate read-only source resolution/build from job-scoped OIDC/attestation
+  signing and release upload. Only the upload job receives contents write.
+  Tag pushes and dispatches resolve existing tags on reviewed main history.
+- Attest the source manifest alongside distributions or a uniquely named rebuild
+  archive. For a historical dispatch, workflow ref/SHA and tagged source SHA are
+  different identities; verify the workflow cryptographically and check the
+  separately signed source manifest against the selected tag commit.
+- Rebuilds preserve original wheel/sdist bytes as historical assets. Upload a new
+  run-specific archive containing the newly built distributions. Never clobber
+  existing assets; skip byte-identical files and fail before writes on conflicts
+  or moved tags. Never create a release or tag in this workflow.
+- Build rehearsals and negative tests have no signing/upload permissions and do
+  not produce attestations. A successful rehearsal is not a signed release.
+  Maintainers create/review releases, dispatch historical rebuilds and verify
+  the first real signed run. No PyPI publication is configured.
+
 ## ADR-028 Honest Best Practices evidence
 
 **Status:** Accepted.

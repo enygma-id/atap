@@ -1,0 +1,157 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Release provenance
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable source tag (for example v0.3.1)
+        required: true
+        type: string
+      rebuild:
+        description: Preserve historical assets by uploading a uniquely named rebuild bundle
+        default: false
+        type: boolean
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'enygma-id/atap'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.source.outputs.tag }}
+      source_sha: ${{ steps.source.outputs.source_sha }}
+      stem: ${{ steps.source.outputs.stem }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Resolve the existing source tag and approved build context
+        id: source
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          REBUILD: ${{ inputs.rebuild || false }}
+        shell: bash
+        run: |
+          flags=()
+          if [ "$REBUILD" = true ]; then flags+=(--rebuild); fi
+          python tools/release_artifacts.py prepare --tag "$RELEASE_TAG" "${flags[@]}" --out "$RUNNER_TEMP/build-context.json" --github-output "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-context
+          path: ${{ runner.temp }}/build-context.json
+          if-no-files-found: error
+          retention-days: 30
+  build:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          path: source
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-context
+          path: context
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.7'
+          enable-cache: false
+      - name: Build the exact source with hash-verified control tools
+        shell: bash
+        run: |
+          uv venv "$RUNNER_TEMP/build-env" --python 3.12
+          uv pip install --python "$RUNNER_TEMP/build-env/bin/python" --require-hashes -r control/requirements/build.txt
+          cd source
+          uv build --python "$RUNNER_TEMP/build-env/bin/python" --no-build-isolation --out-dir "$GITHUB_WORKSPACE/dist"
+          cd ..
+          "$RUNNER_TEMP/build-env/bin/python" control/tools/release_artifacts.py package --dist dist --out release-assets --context context/build-context.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-subjects
+          path: release-assets/
+          if-no-files-found: error
+          retention-days: 30
+  provenance:
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-subjects
+          path: release-assets
+      - name: Recheck build subjects before signing
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: python tools/release_artifacts.py check --directory release-assets --tag "$RELEASE_TAG" --source-sha "$SOURCE_SHA"
+      - name: Attest the distribution subjects and source manifest
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: release-assets/${{ needs.prepare.outputs.stem }}.SHA256SUMS
+          create-storage-record: false
+      - name: Retain the genuine Sigstore bundle as JSON Lines
+        env:
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: python tools/release_artifacts.py bundle --directory release-assets --bundle "$BUNDLE_PATH"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: attested-release-assets
+          path: release-assets/
+          if-no-files-found: error
+          retention-days: 30
+  upload:
+    needs: [prepare, provenance]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: attested-release-assets
+          path: release-assets
+      - name: Verify signatures and upload only missing identical-or-new assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: python tools/release_artifacts.py upload --directory release-assets --tag "$RELEASE_TAG" --source-sha "$SOURCE_SHA" --workflow-ref "$GITHUB_REF" --workflow-sha "$GITHUB_SHA"

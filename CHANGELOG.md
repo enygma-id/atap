@@ -9,6 +9,10 @@ All notable public changes to ATAP should be documented here.
 - document evidence and remaining maintainer checks for all 67 OpenSSF Best
   Practices Passing criteria, without claiming registration or a badge;
 
+- prepare a hash-pinned release build and GitHub Artifact Attestations workflow,
+  verified SLSA provenance bundles, source manifests and non-overwriting historical
+  rebuilds; add read-only historical build checks without publishing releases;
+
 - add native Atheris ID/schema/export fuzzing with reviewed synthetic seeds and
   generated volume/hierarchy tests; install test dependencies in the complete
   hashed CI and NumPy 1 graphs and check seed execution before merge; prepare
